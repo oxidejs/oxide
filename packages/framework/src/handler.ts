@@ -77,7 +77,8 @@ function indexHTML(app: { body: string; head: string }) {
         <div id="app">${app.body}</div>
         <script type="module" src="${resolveEntry("src/client.ts")}"></script>
       </body>
-    </html>`;
+    </html>
+  `;
 }
 
 function resolveEntry(entry: string): string {
