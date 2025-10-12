@@ -1,0 +1,27 @@
+{
+  "name": "@oxidejs/framework",
+  "module": "src/index.ts",
+  "type": "module",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "scripts": {
+    "build": "bunup"
+  },
+  "devDependencies": {
+    "@types/bun": "latest",
+    "bunup": "^0.14.20"
+  },
+  "peerDependencies": {
+    "svelte": "^5.39",
+    "typescript": "^5"
+  },
+  "dependencies": {
+    "dedent": "^1.7.0",
+    "find-up": "^8.0.0",
+    "rou3": "^0.7.7"
+  }
+}
