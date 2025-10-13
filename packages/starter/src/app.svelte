@@ -1,8 +1,6 @@
 <script lang="ts">
-  let { router, url } = $props()
+  import Router from '@oxidejs/framework/router.svelte';
+  import './app.css';
 </script>
 
-<p>{url.pathname}</p>
-
-<a href="/">Home</a>
-<a href="/about">About</a>
+<Router />

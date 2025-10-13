@@ -1,7 +1,10 @@
 import App from "./app.svelte";
 import { OxideHandler } from "@oxidejs/framework";
 
-const oxide = new OxideHandler({ app: App });
+const oxide = new OxideHandler({
+  app: App,
+  routesDir: "src/app",
+});
 
 export default {
   async fetch(req: Request) {
