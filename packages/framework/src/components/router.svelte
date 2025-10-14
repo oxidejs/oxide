@@ -2,7 +2,7 @@
   import { onMount, onDestroy, getContext, setContext } from 'svelte';
   import { findRoute, createRouter, addRoute } from 'rou3';
 
-  type RouterStatus = 'initializing' | 'loading' | 'ready' | 'not-found' | 'error';
+  type RouterStatus = 'ready' | 'loading' | 'not-found' | 'error';
 
   interface RouterProps {
     fallback?: any;
@@ -28,7 +28,7 @@
     }
   }
 
-  let routerState = $state<RouterStatus>('initializing');
+  let routerState = $state<RouterStatus>('ready');
   let currentLocation = $state({
     pathname: '/',
     search: '',
@@ -38,12 +38,14 @@
   let currentParams = $state<Record<string, string>>({});
   let currentComponent = $state<any>(null);
   let routerError = $state<Error | null>(null);
+  let isNavigating = $state(false);
 
   function navigate(path: string, options: any = {}) {
     if (!isBrowser) return;
 
     const action = options.replace ? 'replaceState' : 'pushState';
     history[action]({}, '', base + path);
+    isNavigating = true;
     updateLocation();
   }
 
@@ -136,7 +138,9 @@
   async function updateLocation(): Promise<void> {
     if (!isBrowser) return;
 
-    routerState = 'loading';
+    if (isNavigating) {
+      routerState = 'loading';
+    }
 
     const url = new URL(window.location.href);
     let pathname = url.pathname;
@@ -160,11 +164,13 @@
 
         await loadComponent(match.data.component);
         routerState = 'ready';
+        isNavigating = false;
         return;
       } catch (error) {
         console.error('Failed to load route:', error);
         routerError = error as Error;
         routerState = 'error';
+        isNavigating = false;
         return;
       }
     }
@@ -173,6 +179,7 @@
     currentParams = {};
     currentComponent = null;
     routerState = 'not-found';
+    isNavigating = false;
   }
 
   function extractParams(pathname: string, routeData: any): Record<string, string> {
@@ -224,6 +231,7 @@
   }
 
   function handlePopState(): void {
+    isNavigating = true;
     updateLocation();
   }
 
@@ -290,7 +298,7 @@
   });
 </script>
 
-{#if routerState === 'initializing' || routerState === 'loading'}
+{#if routerState === 'loading'}
   <div class="flex items-center justify-center min-h-screen">
     {#if loading}
       {@render loading()}
