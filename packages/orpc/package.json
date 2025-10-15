@@ -3,10 +3,24 @@
   "module": "index.ts",
   "type": "module",
   "private": true,
-  "devDependencies": {
-    "@types/bun": "latest"
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
   },
-  "peerDependencies": {
+  "scripts": {
+    "build": "bunup"
+  },
+  "devDependencies": {
+    "@types/bun": "latest",
+    "bunup": "^0.14.20",
+    "vite": "^7.1.10",
     "typescript": "^5"
+  },
+  "dependencies": {
+    "@orpc/client": "^1.9.4",
+    "@orpc/server": "^1.9.4",
+    "dedent": "^1.7.0"
   }
 }

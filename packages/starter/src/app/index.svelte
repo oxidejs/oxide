@@ -1,5 +1,5 @@
 <svelte:head>
-  <title>Oxide Starter</title>
+  <title>Oxide</title>
 </svelte:head>
 
 <div class="flex flex-col h-screen justify-center items-center">

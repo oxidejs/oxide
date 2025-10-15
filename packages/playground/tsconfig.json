@@ -6,5 +6,5 @@
       "$lib/*": ["src/lib/*"]
     }
   },
-  "include": [".oxide/**/*"]
+  "include": ["src/**/*", ".oxide/**/*"]
 }

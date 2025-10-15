@@ -1,0 +1,26 @@
+{
+  "name": "@oxidejs/playground",
+  "module": "src/server.ts",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "dev": "vite dev",
+    "build": "vite build"
+  },
+  "devDependencies": {
+    "@sveltejs/vite-plugin-svelte": "^6.2.1",
+    "@tailwindcss/vite": "^4.1.14",
+    "@tsconfig/svelte": "^5.0.5",
+    "@types/bun": "latest",
+    "nitro": "^3.0.1-alpha.0",
+    "typescript": "^5.9",
+    "vite": "^7.1.10"
+  },
+  "dependencies": {
+    "@orpc/client": "^1.9.4",
+    "@orpc/server": "^1.9.4",
+    "@oxidejs/framework": "workspace:*",
+    "@oxidejs/orpc": "workspace:*",
+    "svelte": "^5.40.0"
+  }
+}

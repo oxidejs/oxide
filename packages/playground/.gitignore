@@ -1,9 +1,7 @@
-.output
-.nitro
-.oxide
-
 # dependencies (bun install)
 node_modules
+
+.oxide
 
 # output
 out
