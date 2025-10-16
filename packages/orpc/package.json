@@ -1,6 +1,14 @@
 {
   "name": "@oxidejs/orpc",
+  "version": "0.0.1",
   "module": "index.ts",
+  "license": "MIT",
+  "homepage": "https://oxidejs.github.io/oxide/",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/oxidejs/oxide.git",
+    "directory": "packages/client"
+  },
   "type": "module",
   "private": true,
   "exports": {
@@ -9,6 +17,9 @@
       "types": "./dist/index.d.ts"
     }
   },
+  "files": [
+    "dist"
+  ],
   "scripts": {
     "build": "bunup"
   },

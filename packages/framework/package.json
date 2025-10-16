@@ -1,6 +1,14 @@
 {
   "name": "@oxidejs/framework",
+  "version": "0.0.1",
   "module": "src/index.ts",
+  "license": "MIT",
+  "homepage": "https://oxidejs.github.io/oxide/",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/oxidejs/oxide.git",
+    "directory": "packages/client"
+  },
   "type": "module",
   "exports": {
     ".": {
@@ -14,6 +22,9 @@
       "import": "./dist/components/router.svelte"
     }
   },
+  "files": [
+    "dist"
+  ],
   "scripts": {
     "build": "bunup"
   },
