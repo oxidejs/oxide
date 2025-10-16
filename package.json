@@ -4,6 +4,7 @@
   "type": "module",
   "private": true,
   "scripts": {
+    "build:deps": "bun --filter '{@oxidejs/framework,@oxidejs/orpc}' build",
     "docs:dev": "vocs dev",
     "docs:build": "vocs build",
     "docs:preview": "vocs preview",
