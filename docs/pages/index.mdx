@@ -1,7 +1,27 @@
 ---
+title: Oxide.js - Modular Svelte Web Framework
 layout: landing
+showLogo: false
 ---
 
-# Hello, World! [This is my first page]
+import { HomePage } from "vocs/components";
 
-Welcome to my docs.
+<HomePage.Root>
+  <HomePage.Logo />
+  <HomePage.Tagline>
+    Modular Svelte Web Framework, powered by Vite and Nitro.
+  </HomePage.Tagline>
+  <HomePage.Description>
+    Oxide is a Svelte and TypeScript web framework for building full-stack
+    applications. Use Svelte to build rich user interfaces, and Oxide will
+    provide building blocks for the server side of your application.
+  </HomePage.Description>
+  <HomePage.Buttons>
+    <HomePage.Button href="/docs" variant="accent">
+      Get started
+    </HomePage.Button>
+    <HomePage.Button href="https://github.com/oxidejs/oxide">
+      GitHub
+    </HomePage.Button>
+  </HomePage.Buttons>
+</HomePage.Root>

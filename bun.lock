@@ -4,6 +4,7 @@
     "": {
       "name": "unsv",
       "devDependencies": {
+        "@fontsource-variable/geist": "^5.2.8",
         "@prettier/plugin-oxc": "^0.0.4",
         "@tsconfig/bun": "^1.0.9",
         "@types/bun": "latest",
@@ -19,6 +20,7 @@
     },
     "packages/framework": {
       "name": "@oxidejs/framework",
+      "version": "0.0.1",
       "dependencies": {
         "dedent": "^1.7.0",
         "find-up": "^8.0.0",
@@ -37,6 +39,7 @@
     },
     "packages/orpc": {
       "name": "@oxidejs/orpc",
+      "version": "0.0.1",
       "dependencies": {
         "@orpc/client": "^1.9.4",
         "@orpc/server": "^1.9.4",
@@ -225,6 +228,8 @@
     "@floating-ui/react-dom": ["@floating-ui/react-dom@2.1.6", "", { "dependencies": { "@floating-ui/dom": "^1.7.4" }, "peerDependencies": { "react": ">=16.8.0", "react-dom": ">=16.8.0" } }, "sha512-4JX6rEatQEvlmgU80wZyq9RT96HZJa88q8hp0pBd+LrczeDI4o6uA2M+uvxngVHo4Ihr8uibXxH6+70zhAFrVw=="],
 
     "@floating-ui/utils": ["@floating-ui/utils@0.2.10", "", {}, "sha512-aGTxbpbg8/b5JfU1HXSrbH3wXZuLPJcNEcZQFMxLs3oSzgtVu6nFPkbbGGUvBcUjKV2YyB9Wxxabo+HEH9tcRQ=="],
+
+    "@fontsource-variable/geist": ["@fontsource-variable/geist@5.2.8", "", {}, "sha512-cJ6m9e+8MQ5dCYJsLylfZrgBh6KkG4bOLckB35Tr9J/EqdkEM6QllH5PxqP1dhTvFup+HtMRPuz9xOjxXJggxw=="],
 
     "@fortawesome/fontawesome-free": ["@fortawesome/fontawesome-free@6.7.2", "", {}, "sha512-JUOtgFW6k9u4Y+xeIaEiLr3+cjoUPiAuLXoyKOJSia6Duzb7pq+A76P9ZdPDoAoxHdHzq6gE9/jKBGXlZT8FbA=="],
 

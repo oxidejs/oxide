@@ -12,6 +12,7 @@
     "format": "prettier --write ."
   },
   "devDependencies": {
+    "@fontsource-variable/geist": "^5.2.8",
     "@prettier/plugin-oxc": "^0.0.4",
     "@tsconfig/bun": "^1.0.9",
     "@types/bun": "latest",
