@@ -1,26 +1,21 @@
-import { join } from "node:path";
 import { render } from "svelte/server";
 import type { Component } from "svelte";
 import { RouteScanner } from "./scanner";
 import type { PluginContext } from "./types";
 
 export class OxideHandler {
-  private routesDir: string;
   private app: Component<any>;
   private context: Map<string, any>;
   private cachedRoutes: any[] | null = null;
 
   constructor({
     app,
-    routesDir,
     context,
   }: {
     app: Component<any>;
-    routesDir?: string;
     context?: Map<string, any>;
   }) {
     this.app = app;
-    this.routesDir = routesDir ?? join(process.cwd(), "src", "app");
     this.context = context ?? new Map();
   }
 
@@ -28,14 +23,33 @@ export class OxideHandler {
     req: Request,
   ): Promise<{ matched: boolean; response: Response }> {
     const url = new URL(req.url);
+
+    // Skip static assets and API routes
+    if (
+      url.pathname.startsWith("/@") ||
+      url.pathname.startsWith("/src/") ||
+      url.pathname.startsWith("/virtual:") ||
+      url.pathname.includes(".") ||
+      url.pathname.startsWith("/api/")
+    ) {
+      return {
+        matched: false,
+        response: new Response("Not found", { status: 404 }),
+      };
+    }
+
     const routes = await this.getRoutes();
+    const matched = this.findMatchingRoute(url.pathname, routes);
 
     this.context.set("location", url);
+    if (matched) {
+      this.context.set("ssrRoute", matched);
+    }
+
     const app = render(this.app, {
       context: this.context,
     });
 
-    const matched = this.matchRoute(url.pathname, routes);
     const response = new Response(this.generateHTML(app), {
       headers: {
         "Content-Type": "text/html",
@@ -53,7 +67,7 @@ export class OxideHandler {
     const context: PluginContext = {
       root: process.cwd(),
       options: {
-        pagesDir: this.routesDir,
+        pagesDir: "src/app",
         extensions: [".svelte"],
         importMode: "async",
         virtualId: "virtual:oxide-routes",
@@ -62,102 +76,47 @@ export class OxideHandler {
     };
 
     const scanner = new RouteScanner(context);
-
     const scanResult = await scanner.scan();
     const processedTree = await scanner.applyHooks(scanResult.tree);
 
-    const routes = this.flattenRoutes(processedTree);
+    const routes = processedTree.children || [];
     this.cachedRoutes = routes;
     return routes;
   }
 
-  private flattenRoutes(tree: any): any[] {
-    const routes: any[] = [];
+  private findMatchingRoute(pathname: string, routes: any[]): any {
+    function searchRoutes(
+      routeList: any[],
+      parentPath = "",
+      ancestors: any[] = [],
+    ): any {
+      for (const route of routeList) {
+        const routePath =
+          parentPath === "/" ? route.path : `${parentPath}/${route.path}`;
+        const fullPath = routePath.replace(/\/+/g, "/");
 
-    if (tree.hasComponent) {
-      routes.push(tree);
-    }
+        if (fullPath === pathname) {
+          return {
+            leafRoute: route,
+            layoutChain: ancestors,
+            params: {},
+          };
+        }
 
-    if (tree.children && tree.children.length > 0) {
-      for (const child of tree.children) {
-        routes.push(...this.flattenRoutes(child));
-      }
-    }
-
-    return routes;
-  }
-
-  private matchRoute(pathname: string, routes: any[]): any {
-    for (const route of routes) {
-      const params: Record<string, string> = {};
-
-      if (route.path === pathname) {
-        return { route, params };
-      }
-
-      const segments = pathname.split("/").filter(Boolean);
-      const routeSegments = route.path.split("/").filter(Boolean);
-
-      // Handle catch-all routes (*)
-      if (routeSegments.includes("*")) {
-        const catchAllIndex = routeSegments.indexOf("*");
-
-        // Check if the path segments match up to the catch-all
-        let match = true;
-        for (let i = 0; i < catchAllIndex; i++) {
-          if (i >= segments.length || routeSegments[i] !== segments[i]) {
-            if (!routeSegments[i].startsWith(":")) {
-              match = false;
-              break;
-            } else {
-              const paramName = routeSegments[i].slice(1);
-              params[paramName] = decodeURIComponent(segments[i]!);
-            }
+        if (route.children && route.children.length > 0) {
+          const childMatch = searchRoutes(route.children, fullPath, [
+            ...ancestors,
+            route,
+          ]);
+          if (childMatch) {
+            return childMatch;
           }
         }
-
-        if (match) {
-          // Get the catch-all parameter name from route.params
-          const catchAllParam =
-            route.params?.find(
-              (p: string, index: number) => index === catchAllIndex,
-            ) || "catchAll";
-
-          // Capture remaining segments as catch-all parameter
-          const remainingSegments = segments.slice(catchAllIndex);
-          params[catchAllParam] = remainingSegments.join("/");
-
-          return { route, params };
-        }
-        continue;
       }
-
-      // Regular route matching
-      if (segments.length !== routeSegments.length) {
-        continue;
-      }
-
-      let match = true;
-      for (let i = 0; i < routeSegments.length; i++) {
-        const routeSegment = routeSegments[i];
-        const pathSegment = segments[i];
-
-        if (routeSegment.startsWith(":")) {
-          const paramName = routeSegment.slice(1);
-          if (!pathSegment) continue;
-          params[paramName] = decodeURIComponent(pathSegment);
-        } else if (routeSegment !== pathSegment) {
-          match = false;
-          break;
-        }
-      }
-
-      if (match) {
-        return { route, params };
-      }
+      return null;
     }
 
-    return null;
+    return searchRoutes(routes);
   }
 
   private generateHTML(app: { body: string; head: string }): string {

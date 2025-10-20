@@ -38,11 +38,7 @@ export function OxidePlugin(options: FsRouterOptions = {}): Plugin {
       cachedTypeDefinitions = generated.typeDefinitions;
 
       const totalRoutes = countRoutes(processedTree);
-      console.log(`[oxide] Generated ${totalRoutes} routes`);
     } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      console.error(`[oxide] Route generation failed: ${message}`);
-
       cachedModuleCode = `export const routes = [];\nexport default routes;`;
       cachedTypeDefinitions = `export type RouteNames = never;`;
     }
