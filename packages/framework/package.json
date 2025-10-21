@@ -32,7 +32,7 @@
     "@types/bun": "latest",
     "bun-plugin-svelte": "^0.0.6",
     "bunup": "^0.14.20",
-    "vite": "^7.1.9"
+    "vite": "7.1.11"
   },
   "peerDependencies": {
     "svelte": "^5.39",
