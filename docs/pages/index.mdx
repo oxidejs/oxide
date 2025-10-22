@@ -9,7 +9,7 @@ import { HomePage } from "vocs/components";
 <HomePage.Root>
   <HomePage.Logo />
   <HomePage.Tagline>
-    Modular Svelte Web Framework, powered by Vite and Nitro.
+    Modular <b>Svelte Web Framework</b>, powered by Vite and Nitro.
   </HomePage.Tagline>
   <HomePage.Description>
     Oxide is a Svelte and TypeScript web framework for building full-stack
@@ -25,3 +25,17 @@ import { HomePage } from "vocs/components";
     </HomePage.Button>
   </HomePage.Buttons>
 </HomePage.Root>
+
+## Create App
+
+:::code-group
+
+```sh [Using NPM]
+npx giget@latest gh:oxidejs/oxide/packages/starter my-app
+```
+
+```sh [Using Bun]
+bunx giget@latest gh:oxidejs/oxide/packages/starter my-app
+```
+
+:::

@@ -46,6 +46,37 @@
 <div>{data.pokemon.name}</div>
 ```
 
+## Redirects
+
+If there's some conditional logic that should prevent user from viewing specific route, you can early return a `Response` with HTTP 302 status code. We've prepared a helper utility `redirect` so it's easier.
+
+```svelte twoslash
+// src/app/dashboard.svelte
+<script lang="ts" module>
+  import { redirect } from '$oxide'
+  import { auth } from '$lib/auth'
+
+  export async function load({ request }: LoaderContext) {
+    const authSession = await auth.api.getSession({
+      headers: request.headers
+    })
+    if (!authSession?.user) {
+      return redirect('/login')
+    }
+    return {
+      user: authSession.user
+    }
+  }
+</script>
+
+<script lang="ts">
+  let { data } = $props()
+</script>
+
+<div>Authenticated only</div>
+<div>Email: {data.user.email}</div>
+```
+
 ## Static Generation
 
 ```svelte twoslash

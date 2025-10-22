@@ -1,1 +1,53 @@
-# Styling
+# Styling [Make your app shine.]
+
+There are many ways to apply styling to your Oxide application. We bundle the default starter app with [Tailwind CSS](https://tailwindcss.com/) and [Daisy UI](https://daisyui.com/) to kickstart your development and boost your productivity.
+
+## TailwindCSS
+
+### With DaisyUI
+
+```svelte twoslash
+<div class="card bg-base-100 shadow-sm">
+    <div class="card-body">
+        <h2 class="card-title">My Card</h2>
+    </div>
+</div>
+```
+
+### Tailwind-only
+
+If you would like to opt out of Daisy UI, you just have to remove `daisyui` module from `package.json`, and `@plugin 'daisyui';` from `src/app.css`.
+
+```svelte twoslash
+<div class="shadow-sm bg-neutral-200 dark:bg-neutral-800 rounded">
+    <div class="flex flex-col gap-4">
+        <h2 class="text-xl font-semibold text-neutral-900 dark:text-neutral-100">My Card</h2>
+    </div>
+</div>
+```
+
+### With shadcn/ui
+
+Please refer to the [Vite installation guide](https://ui.shadcn.com/docs/installation/vite) in order to install this UI kit and do the same steps as in [Tailwind-only](/docs/styling#tailwind-only) to remove Daisy UI.
+
+## Plain CSS
+
+If you'd like to use the ol' good CSS, uninstall `tailwindss`, `@tailwindcss/vite`, `daisyui` packages and purge your `src/app.css`.
+
+```svelte twoslash
+<div class="card">
+    <h2 class="card__title">My Card</h2>
+</div>
+
+<style>
+  .card {
+    border: 1px #000000 solid;
+    border-radius: 1rem;
+
+    &__title {
+      font-size: 1.5rem;
+      font-weight: 700;
+    }
+  }
+</style>
+```

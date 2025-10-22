@@ -1,1 +1,49 @@
-# Routing
+# Routing [The file system based routing.]
+
+## Routes folder structure
+
+```
+src/app/
+├── index.svelte
+├── user.svelte
+├── auth.svelte
+├── (auth)/
+│   └── login.svelte
+├── dashboard.svelte
+└── dashboard/
+    ├── index.svelte
+    └── invoices/
+        ├── index.svelte
+        └── [invoiceId].svelte
+```
+
+Following routes will be generated:
+
+- `/` — renders the `index.svelte` view.
+- `/user` — renders the `user.svelte` view.
+- `/login` — renders the `(auth)/login.svelte` view.
+- `/dashboard` — renders the `dashboard/index.svelte` view.
+- `/dashboard/invoices` — renders the `dashboard/invoices/index.svelte` view.
+- `/dashboard/invoices/:invoiceId` — renders the `dashboard/invoices/[invoiceId].svelte` view.
+
+## Typed Routes
+
+The framework generated typed routes, so you can use them for `router.push` or `href` functions.
+
+```svelte twoslash
+<script lang="ts">
+  import { useRouter, href as h } from '$oxide'
+
+  const router = useRouter()
+
+  router.push('/')
+  /*          '/'
+              '/user'
+              '/dashboard'
+              '/dashboard/invoices'
+              '/dashboard/invoices/${string}'
+  */
+</script>
+
+<a href={h`/dashboard`}>Go to Dashboard</a>
+```

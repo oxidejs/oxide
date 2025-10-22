@@ -1,3 +1,4 @@
+import { ModuleResolutionKind } from "typescript";
 import { defineConfig } from "vocs";
 
 export default defineConfig({
@@ -33,9 +34,10 @@ export default defineConfig({
         { text: "Project Structure", link: "/docs/project-structure" },
         { text: "Routing", link: "/docs/routing" },
         { text: "Navigation", link: "/docs/navigation" },
-        { text: "Data Fetching", link: "/docs/data-loading" },
+        { text: "Data Loading", link: "/docs/data-loading" },
         { text: "Styling", link: "/docs/styling" },
         { text: "API Routes", link: "/docs/api-routes" },
+        { text: "Deploy Your Apps", link: "/docs/deploy" },
       ],
     },
     {
@@ -69,6 +71,11 @@ export default defineConfig({
       fontFamily: {
         default: '"Geist Variable", sans-serif',
       },
+    },
+  },
+  twoslash: {
+    compilerOptions: {
+      moduleResolution: ModuleResolutionKind.Bundler,
     },
   },
 });
