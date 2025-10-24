@@ -1,4 +1,6 @@
-# Routing [The file system based routing.]
+# Routing
+
+The file system based routing.
 
 ## Routes folder structure
 

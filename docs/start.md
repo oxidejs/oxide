@@ -1,6 +1,6 @@
-import { Callout } from "vocs/components";
+# Oxide.js Docs
 
-# Oxide.js Docs [Welcome to the home of Oxide!]
+Welcome to the home of Oxide!
 
 ## What is Oxide?
 

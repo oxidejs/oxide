@@ -5,9 +5,9 @@
   "private": true,
   "scripts": {
     "build:deps": "bun --filter '{@oxidejs/framework}' build",
-    "docs:dev": "vocs dev",
-    "docs:build": "vocs build",
-    "docs:preview": "vocs preview",
+    "docs:dev": "vitepress dev",
+    "docs:build": "vitepress build",
+    "docs:preview": "vitepress preview",
     "lint": "oxlint",
     "format": "prettier --write ."
   },
@@ -21,10 +21,13 @@
     "oxlint": "^1.22.0",
     "prettier": "^3.6.2",
     "tailwindcss": "^4.1.14",
-    "vocs": "1.0.13"
+    "vitepress": "^2.0.0-alpha.12"
   },
   "peerDependencies": {
     "typescript": "^5"
+  },
+  "overrides": {
+    "twoslash": "0.3.4"
   },
   "workspaces": [
     "packages/**"

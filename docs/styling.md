@@ -1,4 +1,6 @@
-# Styling [Make your app shine.]
+# Styling
+
+Make your app shine.
 
 There are many ways to apply styling to your Oxide application. We bundle the default starter app with [Tailwind CSS](https://tailwindcss.com/) and [Daisy UI](https://daisyui.com/) to kickstart your development and boost your productivity.
 
@@ -28,7 +30,7 @@ If you would like to opt out of Daisy UI, you just have to remove `daisyui` modu
 
 ### With shadcn/ui
 
-Please refer to the [Vite installation guide](https://ui.shadcn.com/docs/installation/vite) in order to install this UI kit and do the same steps as in [Tailwind-only](/docs/styling#tailwind-only) to remove Daisy UI.
+Please refer to the [Vite installation guide](https://ui.shadcn.com/docs/installation/vite) in order to install this UI kit and do the same steps as in [Tailwind-only](/styling#tailwind-only) to remove Daisy UI.
 
 ## Plain CSS
 

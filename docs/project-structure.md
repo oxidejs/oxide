@@ -1,11 +1,13 @@
-# Project Structure [Learn where do modules and components belong to.]
+# Project Structure
+
+Learn where do modules and components belong to.
 
 ```
 ├── node_modules/
 ├── src/
 │   ├── app/ — Directory for Oxide routes.
 │   ├── lib/ — Directory for your application's library.
-│   ├── routers/* — Directory for ORPC routers.
+│   ├── routers/ — Directory for ORPC routers.
 │   ├── app.css — Main styling entry.
 │   ├── app.svelte — Main app component.
 │   ├── client.ts — Client side app entry.
@@ -16,7 +18,6 @@
 ├── README.md
 ├── tsconfig.json
 └── vite.config.ts
-* - optional
 ```
 
 ## src/app/ - Routes directory
@@ -71,5 +72,3 @@ Then in your Svelte views and loaders you'll be able to:
   })
 </script>
 ```
-
-Learn more in [ORPC extension guide](/docs/orpc).
