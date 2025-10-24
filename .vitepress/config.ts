@@ -10,6 +10,12 @@ export default defineConfig({
   themeConfig: {
     // https://vitepress.dev/reference/default-theme-config
     logo: "/logo-tiny.svg",
+    search: {
+      provider: "local",
+    },
+    editLink: {
+      pattern: "https://github.com/oxidejs/oxide/edit/main/:path",
+    },
     nav: [
       { text: "Home", link: "/" },
       { text: "Examples", link: "/markdown-examples" },
