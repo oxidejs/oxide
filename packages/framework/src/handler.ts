@@ -28,7 +28,6 @@ export class OxideHandler {
     if (
       url.pathname.startsWith("/@") ||
       url.pathname.startsWith("/src/") ||
-      url.pathname.startsWith("/virtual:") ||
       url.pathname.includes(".") ||
       url.pathname.startsWith("/api/")
     ) {
@@ -46,7 +45,7 @@ export class OxideHandler {
       this.context.set("ssrRoute", matched);
     }
 
-    const app = render(this.app, {
+    const app = await render(this.app, {
       context: this.context,
     });
 
@@ -70,7 +69,7 @@ export class OxideHandler {
         pagesDir: "src/app",
         extensions: [".svelte"],
         importMode: "async",
-        virtualId: "virtual:oxide-routes",
+        virtualId: "$oxide",
       },
       cache: new Map(),
     };

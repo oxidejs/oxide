@@ -41,10 +41,6 @@ export default defineConfig({
       ],
     },
     {
-      text: "Extensions",
-      items: [{ text: "ORPC", link: "/docs/orpc" }],
-    },
-    {
       text: "Recipes",
       items: [
         { text: "Drizzle ORM", link: "/docs/drizzle" },
@@ -53,11 +49,8 @@ export default defineConfig({
       ],
     },
     {
-      text: "Reference",
-      items: [
-        { text: "@oxidejs/framework", link: "/docs/oxide-framework" },
-        { text: "@oxidejs/orpc", link: "/docs/oxide-orpc" },
-      ],
+      text: "API reference",
+      link: "/docs/reference",
     },
   ],
   topNav: [

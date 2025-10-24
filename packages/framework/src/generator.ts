@@ -233,7 +233,7 @@ export function getRouteParams(path) {
 
 export type RouteNames = ${routeNames};
 
-declare module "virtual:oxide-routes" {
+declare module "$oxide" {
   export const routes: RouteRecord[];
   export default routes;
   export function findRouteByName(name: RouteNames): RouteRecord | undefined;

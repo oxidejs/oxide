@@ -1,13 +1,12 @@
 import { RPCHandler } from "@orpc/server/fetch";
 import App from "./app.svelte";
 import { OxideHandler } from "@oxidejs/framework";
-import { router } from "virtual:orpc";
+import { router } from "$oxide";
 
 const orpcHandler = new RPCHandler(router);
 
 const oxideHandler = new OxideHandler({
   app: App,
-  routesDir: "src/app",
 });
 
 export default {

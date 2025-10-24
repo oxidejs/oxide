@@ -27,7 +27,7 @@
   // Route loading
   async function loadRoutes() {
     try {
-      const routesModule = await import('virtual:oxide-routes');
+      const routesModule = await import('$oxide');
       routes = routesModule.routes || [];
     } catch (error) {
       routes = [];

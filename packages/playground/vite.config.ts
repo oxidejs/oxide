@@ -4,7 +4,6 @@ import { svelte } from "@sveltejs/vite-plugin-svelte";
 import { nitro } from "nitro/vite";
 import tailwindcss from "@tailwindcss/vite";
 import { oxide } from "@oxidejs/framework";
-import { orpc } from "@oxidejs/orpc";
 
 // https://vite.dev/config/
 export default defineConfig({
@@ -13,13 +12,14 @@ export default defineConfig({
   },
   plugins: [
     tailwindcss(),
-    svelte(),
+    svelte({ compilerOptions: { experimental: { async: true } } }),
     nitro({
       services: { ssr: { entry: "./src/server.ts" } },
     }),
     oxide({
-      dir: "src/app",
+      pagesDir: "src/app",
+      routersDir: "src/routers",
+      dts: true,
     }),
-    orpc(),
   ],
 });

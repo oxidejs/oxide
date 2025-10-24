@@ -11,7 +11,7 @@ export default defineConfig({
     alias: [{ find: "$lib", replacement: resolve(__dirname, "src/lib") }],
   },
   plugins: [
-    svelte(),
+    svelte({ compilerOptions: { experimental: { async: true } } }),
     nitro({
       services: { ssr: { entry: "./src/server.ts" } },
     }),

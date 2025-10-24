@@ -12,6 +12,16 @@ export interface FsRouterOptions {
   ) => RouteNode[] | Promise<RouteNode[]>;
   routeNameGenerator?: (route: RouteNode) => string;
   routeGroups?: boolean;
+
+  // ORPC options
+  routersDir?: string;
+  rpcExtensions?: string[];
+  clientUrl?: string;
+  clientConfig?: {
+    baseUrl?: string;
+    headers?: Record<string, string>;
+  };
+  ssr?: boolean;
 }
 
 export interface RouteNode {

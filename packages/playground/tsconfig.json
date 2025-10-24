@@ -6,5 +6,5 @@
       "$lib/*": ["src/lib/*"]
     }
   },
-  "include": ["src/**/*", ".oxide/**/*"]
+  "include": ["src/**/*", ".oxide/types.d.ts"]
 }

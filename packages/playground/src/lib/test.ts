@@ -1,3 +1,3 @@
-import { client } from "virtual:orpc";
+import { rpc } from "$oxide";
 
-client.nested.test2.ping();
+rpc.nested.test2.ping();
