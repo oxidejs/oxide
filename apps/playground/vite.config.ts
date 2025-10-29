@@ -16,10 +16,6 @@ export default defineConfig({
     nitro({
       services: { ssr: { entry: "./src/server.ts" } },
     }),
-    oxide({
-      pagesDir: "src/app",
-      routersDir: "src/routers",
-      dts: true,
-    }),
+    oxide(),
   ],
 });

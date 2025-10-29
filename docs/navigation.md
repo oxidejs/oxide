@@ -1,5 +1,7 @@
 # Navigation
 
+Navigation in Oxide is very similar to other popular frameworks, but we also ensure you get a nice type safety when navigating.
+
 ## Type-safe hrefs
 
 For the DOM based routing, we've prepared a `href` function that lists all the possible route URLs of your application.

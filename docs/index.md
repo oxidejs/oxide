@@ -11,14 +11,16 @@ hero:
       text: Get Started
       link: /start
     - theme: alt
-      text: API Examples
-      link: /api-examples
+      text: GitHub
+      link: https://github.com/oxidejs/oxide
 
 features:
-  - title: Feature A
-    details: Lorem ipsum dolor sit amet, consectetur adipiscing elit
-  - title: Feature B
-    details: Lorem ipsum dolor sit amet, consectetur adipiscing elit
-  - title: Feature C
-    details: Lorem ipsum dolor sit amet, consectetur adipiscing elit
+  - title: Type safety is not optional
+    details: The framework is built around the idea of strict typing to provide extra safety.
+  - title: Vite and Nitro based
+    details: The foundation of the framework is based on battle tested tools with active community.
+  - title: Sane defaults
+    details: The starter is shipped with opinionated stack, but also easily customizable.
+  - title: Progressive
+    details: Leveraging modern Web APIs and tools. Providing best-in-class Developer Experience.
 ---

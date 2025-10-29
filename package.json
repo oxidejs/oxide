@@ -13,23 +13,22 @@
   },
   "devDependencies": {
     "@fontsource-variable/geist": "^5.2.8",
+    "@fontsource-variable/geist-mono": "^5.2.7",
     "@orpc/server": "^1.10.0",
     "@prettier/plugin-oxc": "^0.0.4",
     "@tsconfig/bun": "^1.0.9",
     "@types/bun": "latest",
-    "daisyui": "^5.2.3",
     "oxlint": "^1.22.0",
     "prettier": "^3.6.2",
     "tailwindcss": "^4.1.14",
-    "vitepress": "^2.0.0-alpha.12"
+    "vitepress": "^2.0.0-alpha.12",
+    "vitepress-plugin-llms": "^1.8.1"
   },
   "peerDependencies": {
     "typescript": "^5"
   },
-  "overrides": {
-    "twoslash": "0.3.4"
-  },
   "workspaces": [
+    "apps/**",
     "packages/**"
   ]
 }

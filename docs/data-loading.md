@@ -1,109 +1,44 @@
 # Data Loading
 
+The UI data loading leverages the async Svelte global `await` feature.
+
 ## With Fetch API
 
-```svelte twoslash
-// src/app/pokemon/[name].svelte
-<script lang="ts" module>
-  import { LoaderContext } from '@oxidejs/framework'
-
-  export async function load({ url }: LoaderContext) {
-    const req = await fetch(
-      `https://pokeapi.co/api/v2/pokemon/${url.params.name}`
-    )
-    const data = await req.json()
-    return { pokemon: data }
-  }
-</script>
-
-<script lang="ts">
-  let { data } = $props()
-</script>
-
-<div>{data.pokemon.name}</div>
-```
-
-## With ORPC
+The easiest way to load the data into your view is to just use Fetch API, but if you are planning to fetch the data from your own API in your application, consider using [oRPC approach](/orpc).
 
 ```svelte twoslash
 // src/app/pokemon/[name].svelte
-<script lang="ts" module>
-  import { client } from '$orpc'
-
-  export async function load({ url }: LoaderContext) {
-    return {
-      pokemon: await client.pokemon({
-        name: url.params.name
-      })
-    }
-  }
-</script>
-
 <script lang="ts">
-  let { data } = $props()
+  import { useRoute } from '$oxide'
+
+  const route = useRoute()
+
+  const req = await fetch(
+    `https://pokeapi.co/api/v2/pokemon/${route.params.name}`
+  )
+  const pokemon = await req.json()
 </script>
 
-<div>{data.pokemon.name}</div>
+<div>{pokemon.name}</div>
 ```
 
-## Redirects
+> Tip: Use [ofetch](https://github.com/unjs/ofetch) to skip the `await req.json()` part.
 
-If there's some conditional logic that should prevent user from viewing specific route, you can early return a `Response` with HTTP 302 status code. We've prepared a helper utility `redirect` so it's easier.
+## With oRPC
 
-```svelte twoslash
-// src/app/dashboard.svelte
-<script lang="ts" module>
-  import { redirect } from '$oxide'
-  import { auth } from '$lib/auth'
-
-  export async function load({ request }: LoaderContext) {
-    const authSession = await auth.api.getSession({
-      headers: request.headers
-    })
-    if (!authSession?.user) {
-      return redirect('/login')
-    }
-    return {
-      user: authSession.user
-    }
-  }
-</script>
-
-<script lang="ts">
-  let { data } = $props()
-</script>
-
-<div>Authenticated only</div>
-<div>Email: {data.user.email}</div>
-```
-
-## Static Generation
+Combining async Svelte components with the `rpc` client is a great way to load data from the server, because the oRPC client is SSR optimized, so you don't make extra back HTTP requests.
 
 ```svelte twoslash
 // src/app/pokemon/[name].svelte
-<script lang="ts" module>
-  import { LoaderContext } from '@oxidejs/framework'
-
-  export async function generateStaticParams() {
-    const req = await fetch('https://pokeapi.co/api/v2/pokemon')
-    const data = await req.json()
-    return data.results.map((pokemon) => ({
-      name: pokemon.name
-    }))
-  }
-
-  export async function load({ params }: LoaderContext) {
-    const req = await fetch(
-      `https://pokeapi.co/api/v2/pokemon/${params.name}`
-    )
-    const data = await req.json()
-    return { pokemon: data }
-  }
-</script>
-
 <script lang="ts">
-  let { data } = $props()
+  import { rpc, useRoute } from '$oxide'
+
+  const route = useRoute()
+
+  const pokemon = await rpc.pokemon.find({
+    name: route.params.name
+  })
 </script>
 
-<div>{data.pokemon.name}</div>
+<div>{pokemon.name}</div>
 ```

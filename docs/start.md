@@ -12,11 +12,11 @@ It brings you sane defaults that you can adjust or remove to fit your needs. All
 
 The docs are made up of several sections, each covering a specific aspect of Oxide. These sections include:
 
-- **Getting Started**: A guide to setting up and running your first Oxide application.
-- **Guides**: A guide to setting up and running your first Oxide application.
-- **API Reference**: Detailed documentation on the Oxide API.
+- [**Getting Started**](/start): A guide to setting up and running your first Oxide application.
+- [**Recipes**](/database): Guides on using Oxide with various tools and libraries.
+- [**API Reference**](/reference): Detailed documentation on the Oxide API.
 
-Use the sidebar to navigate or click slash (/) to search for a specific topic.
+Use the `Ctrl K` shortcut to search for a specific topic.
 
 ## Prerequisite
 

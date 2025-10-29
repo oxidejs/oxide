@@ -3,11 +3,12 @@
 Learn where do modules and components belong to.
 
 ```
+├── .oxide/ — Directory for build-time generated typings.
 ├── node_modules/
 ├── src/
-│   ├── app/ — Directory for Oxide routes.
+│   ├── app/ — Directory for view routes.
 │   ├── lib/ — Directory for your application's library.
-│   ├── routers/ — Directory for ORPC routers.
+│   ├── routers/ — Directory for oRPC routers.
 │   ├── app.css — Main styling entry.
 │   ├── app.svelte — Main app component.
 │   ├── client.ts — Client side app entry.
@@ -20,55 +21,18 @@ Learn where do modules and components belong to.
 └── vite.config.ts
 ```
 
-## src/app/ - Routes directory
+## src/app/
 
 The `src/app` directory is the heart of your full-stack application. You should add there all the view and API routes.
 
-## src/lib/ - Application's library directory
+Read the dedicated [Routing](/routing) guide to learn more about the view routes.
+
+## src/lib/
 
 The `src/lib` directory is where you should put your reusable UI components and utilities.
 
-## src/routers/ - Routers directory
+## src/routers/
 
-The `src/routers` directory is where you should add all ORPC routers to be automatically served unter `/rpc` path.
+The `src/routers` directory is where you should add all oRPC routers to be automatically served unter `/rpc` path.
 
-```ts twoslash
-// src/routers/example.ts
-import { os } from "@orpc/server";
-
-export default {
-  ping: os.handler(() => "pong"),
-};
-```
-
-Then in your Svelte views and loaders you'll be able to:
-
-```svelte twoslash
-// src/app/example.svelte
-<script lang="ts" module>
-  import { client } from '$orpc'
-
-  // Server side loading
-  export async function load() {
-    return {
-      ping: await client.example.ping()
-    }
-  }
-</script>
-
-<script lang="ts">
-  import { client } from '$orpc'
-  import { onMount } from 'svelte'
-
-  let { data } = $props()
-
-  let ping = $state<string>(data.ping)
-
-  // Client side fetching
-  onMount(() => {
-    client.example.ping().then((result) => {
-      ping = result
-    })
-  })
-</script>
-```
+Read the dedicated [oRPC](/orpc) guide to learn more about the routers.

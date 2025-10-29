@@ -13,15 +13,20 @@
     "@tsconfig/svelte": "^5.0.5",
     "@types/bun": "latest",
     "daisyui": "^5.3.8",
+    "drizzle-kit": "^0.31.6",
     "nitro": "^3.0.1-alpha.0",
     "typescript": "^5.9",
     "vite": "^7.1.11"
   },
   "dependencies": {
-    "@orpc/client": "^1.9.4",
-    "@orpc/server": "^1.9.4",
+    "@libsql/client": "^0.15.15",
+    "@orpc/client": "^1.10.1",
+    "@orpc/server": "^1.10.1",
     "@oxidejs/framework": "workspace:*",
+    "dotenv": "^17.2.3",
+    "drizzle-orm": "^0.44.7",
     "svelte": "^5.40.0",
+    "unstorage": "^1.17.1",
     "zod": "^4.1.12"
   }
 }
