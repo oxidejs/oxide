@@ -17,12 +17,12 @@ import {
 } from "./orpc/client";
 
 const DEFAULT_OPTIONS: FsRouterOptions = {
-  pagesDir: "src/pages",
+  pagesDir: "src/app",
   extensions: [".svelte"],
   importMode: "async",
   virtualId: "$oxide",
   routeBlock: true,
-  dts: false,
+  dts: true,
   routeGroups: true,
   routersDir: "src/routers",
   rpcExtensions: [".ts", ".js"],
