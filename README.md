@@ -1,6 +1,8 @@
 # Oxide
 
-Highly adjustable## Create project
+Highly adjustable Vite and Nitro based Svelte Web Framework.
+
+## Create project
 
 Using NPM:
 
