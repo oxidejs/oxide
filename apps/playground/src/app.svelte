@@ -1,6 +1,9 @@
 <script lang="ts">
-  import Router from '@oxidejs/framework/router.svelte';
   import './app.css';
+  import Router from '@oxidejs/framework/router.svelte';
+  import { Toaster } from 'svelte-sonner'
 </script>
+
+<Toaster />
 
 <Router />
