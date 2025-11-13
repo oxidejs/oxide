@@ -1,6 +1,7 @@
 import { defineConfig } from "vitepress";
 import llmstxt from "vitepress-plugin-llms";
 import { copyOrDownloadAsMarkdownButtons } from "vitepress-plugin-llms";
+import taskLists from "markdown-it-task-lists";
 
 // https://vitepress.dev/reference/site-config
 export default defineConfig({
@@ -12,6 +13,7 @@ export default defineConfig({
   markdown: {
     config(md) {
       md.use(copyOrDownloadAsMarkdownButtons);
+      md.use(taskLists);
     },
   },
   themeConfig: {
@@ -60,6 +62,10 @@ export default defineConfig({
       {
         text: "API reference",
         link: "/reference",
+      },
+      {
+        text: "Roadmap",
+        link: "/roadmap",
       },
     ],
     socialLinks: [
