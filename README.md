@@ -7,13 +7,13 @@ Highly adjustable Vite and Nitro based Svelte Web Framework.
 Using NPM:
 
 ```sh
-npx giget@latest gh:oxidejs/oxide/packages/starter my-app
+npx giget@latest gh:oxidejs/oxide/apps/starter my-app
 ```
 
 Using Bun:
 
 ```sh
-bunx giget@latest gh:oxidejs/oxide/packages/starter my-app
+bunx giget@latest gh:oxidejs/oxide/apps/starter my-app
 ```
 
 ## Features

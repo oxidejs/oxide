@@ -6,9 +6,8 @@ Learn where do modules and components belong to.
 ├── .oxide/ — Directory for build-time generated typings.
 ├── node_modules/
 ├── src/
-│   ├── app/ — Directory for view routes.
+│   ├── app/ — Directory for view routes and oRPC routers.
 │   ├── lib/ — Directory for your application's library.
-│   ├── routers/ — Directory for oRPC routers.
 │   ├── app.css — Main styling entry.
 │   ├── app.svelte — Main app component.
 │   ├── client.ts — Client side app entry.
@@ -23,16 +22,10 @@ Learn where do modules and components belong to.
 
 ## src/app/
 
-The `src/app` directory is the heart of your full-stack application. You should add there all the view and API routes.
+The `src/app` directory is the heart of your full-stack application. You should add there all the view handlers and [oRPC routers](/orpc).
 
 Read the dedicated [Routing](/routing) guide to learn more about the view routes.
 
 ## src/lib/
 
 The `src/lib` directory is where you should put your reusable UI components and utilities.
-
-## src/routers/
-
-The `src/routers` directory is where you should add all oRPC routers to be automatically served unter `/rpc` path.
-
-Read the dedicated [oRPC](/orpc) guide to learn more about the routers.

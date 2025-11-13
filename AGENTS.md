@@ -2,6 +2,11 @@
 
 This is a monorepo for Oxide, a Svelte Web framework with SSG support, built on top of Vite and Nitro. It also serves as a file system router for Svelte.
 
+## General rules
+
+- Read the damn docs in docs/ before doing anything.
+- Do not run commands yourself. Tell me what should I run.
+
 ## Project Structure
 
 - packages/framework/ - Core of the framework.
@@ -17,4 +22,3 @@ This is a monorepo for Oxide, a Svelte Web framework with SSG support, built on 
 - Prioritize code readability and maintainability.
 - IMPORTANT: DO NOT STUB OR MOCK ANYTHING IN THE CODEBASE.
 - Avoid else statements, prefer early returns and pattern matching.
-- Do not run commands yourself. Tell me what should I run.

@@ -14,7 +14,7 @@
     "@tailwindcss/vite": "^4.1.14",
     "@tsconfig/svelte": "^5.0.5",
     "daisyui": "^5.2.3",
-    "nitro": "^3.0.1-alpha.0",
+    "nitro": "^3.0.1-alpha.1",
     "oxlint": "^1.22.0",
     "prettier": "^3.6.2",
     "svelte": "^5.39.9",

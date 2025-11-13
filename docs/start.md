@@ -29,6 +29,28 @@ The design ideology of Oxide is to always try to stay as close to the original, 
 
 If you are new to Svelte, we recommend checking out the [Basic Svelte](https://svelte.dev/tutorial/svelte/welcome-to-svelte) to get started.
 
+## Starters
+
+There are two starters available. One meant to be minimal and one to kickstart your Software as a Service development.
+
+Minimal:
+
+```sh
+# Using NPM
+npx giget@latest gh:oxidejs/oxide/apps/starter my-app
+# Using Bun
+bunx giget@latest gh:oxidejs/oxide/apps/starter my-app
+```
+
+SaaSkit
+
+```sh
+# Using NPM
+npx giget@latest gh:oxidejs/oxide/apps/saaskit my-app
+# Using Bun
+bunx giget@latest gh:oxidejs/oxide/apps/saaskit my-app
+```
+
 ## Stay Connected
 
 If you have any questions or feedback, feel free to reach out to us on [GitHub](https://github.com/oxidejs/oxide) or [Discord](https://discord.gg/oxidejs).
