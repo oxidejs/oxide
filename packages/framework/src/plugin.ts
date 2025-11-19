@@ -155,59 +155,63 @@ export function OxidePlugin(options: FsRouterOptions = {}): Plugin {
   ): string {
     if (!routeTypes && !rpcTypes) return "";
 
-    const moduleExports: string[] = [];
-    let globalDeclarations = "";
-
-    // Add RouterClient import at the top of the module
-    moduleExports.push("import type { RouterClient } from '@orpc/server';", "");
+    let routeTopLevel = "";
+    let routeModuleContent = "";
 
     if (routeTypes) {
-      // Add route interfaces and types inside the module
-      moduleExports.push(
-        "export interface RouteRecord {",
-        "  name: string;",
-        "  path: string;",
-        "  component: any;",
-        "  params?: string[];",
-        "  meta?: Record<string, any>;",
-        "  alias?: string[];",
-        "  children?: RouteRecord[];",
-        "}",
-        "",
-        'export type RouteNames = "home" | "foo" | "bar";',
-        "",
-        "export const routes: RouteRecord[];",
-        "export default routes;",
-        "export function findRouteByName(name: RouteNames): RouteRecord | undefined;",
-        "export function generatePath(name: RouteNames, params?: Record<string, any>): string;",
-        "export function getRouteParams(path: string): { route: RouteRecord | null; params: Record<string, string> };",
-        "",
-      );
-    }
-
-    if (rpcTypes) {
-      // Add RPC exports
-      moduleExports.push(
-        "export const router: {",
-        "  readonly example: typeof import('../src/routers/example').default",
-        "};",
-        "",
-        "export const rpc: RouterClient<typeof router>;",
-      );
-
-      // Extract global declarations
-      const globalMatch = rpcTypes.match(/declare global \{[\s\S]*?\}/);
-      if (globalMatch) {
-        globalDeclarations = globalMatch[0];
+      const routeModuleStart = routeTypes.indexOf('declare module "$oxide"');
+      if (routeModuleStart >= 0) {
+        routeTopLevel = routeTypes.substring(0, routeModuleStart).trim();
+        const match = routeTypes.match(
+          /declare module "\$oxide" \{([\s\S]*)\}$/,
+        );
+        if (match) routeModuleContent = match[1] || "";
+      } else {
+        routeTopLevel = routeTypes;
       }
     }
 
-    // Build the final types
-    const moduleContent = moduleExports.join("\n  ");
+    let rpcModuleContent = "";
+    let globalDeclarations = "";
 
-    return `declare module "$oxide" {
-  ${moduleContent}
-}${globalDeclarations ? "\n\n" + globalDeclarations : ""}`.trim();
+    if (rpcTypes) {
+      const match = rpcTypes.match(
+        /declare module "\$oxide" \{([\s\S]*?)\}(?:\s*\n\ndeclare global|$)/,
+      );
+      if (match) rpcModuleContent = match[1] || "";
+
+      const globalMatch = rpcTypes.match(/\ndeclare global \{[\s\S]*?\}$/);
+      if (globalMatch) globalDeclarations = globalMatch[0].trim();
+    }
+
+    const parts: string[] = [];
+
+    if (routeTopLevel) {
+      parts.push(routeTopLevel);
+      parts.push("");
+    }
+
+    parts.push('declare module "$oxide" {');
+
+    if (routeModuleContent) {
+      parts.push(routeModuleContent);
+    }
+
+    if (rpcModuleContent) {
+      if (routeModuleContent) {
+        parts.push("");
+      }
+      parts.push(rpcModuleContent);
+    }
+
+    parts.push("}");
+
+    if (globalDeclarations) {
+      parts.push("");
+      parts.push(globalDeclarations);
+    }
+
+    return parts.join("\n");
   }
 
   function countRoutes(tree: any): number {

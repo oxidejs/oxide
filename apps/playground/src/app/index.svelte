@@ -62,6 +62,6 @@
 <form>
   <input type="text" name="email" class="input" bind:value={email} />
   <input type="text" name="otp" class="input" bind:value={otp} />
-  <button type="submit" class="btn btn-primary" onclick={sendOtp}>send otp</button>
-  <button type="submit" class="btn btn-primary" onclick={verifyOtp}>verify otp</button>
+  <button type="button" class="btn btn-primary" onclick={sendOtp}>send otp</button>
+  <button type="button" class="btn btn-primary" onclick={verifyOtp}>verify otp</button>
 </form>

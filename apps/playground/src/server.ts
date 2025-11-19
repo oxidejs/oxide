@@ -5,6 +5,7 @@ import { ResponseHeadersPlugin } from "@orpc/server/plugins";
 import { router } from "$oxide";
 import { kv } from "$lib/kv";
 import { db } from "$lib/db";
+import { auth } from "$lib/auth";
 
 const orpcHandler = new RPCHandler(router, {
   plugins: [new ResponseHeadersPlugin()],
@@ -26,6 +27,11 @@ export default {
     });
     if (orpcResult.matched) {
       return orpcResult.response;
+    }
+    console.log(">>>REQ", request);
+    const authResult = await auth.handler(request);
+    if (authResult.ok) {
+      return authResult;
     }
     return new Response("Not Found", { status: 404 });
   },

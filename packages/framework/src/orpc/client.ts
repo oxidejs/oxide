@@ -136,12 +136,12 @@ declare global {
 
 function generateModuleDeclaration(routerType: string, ssr: boolean): string {
   return `declare module "$oxide" {
-    import type { RouterClient } from '@orpc/server';
+  import type { RouterClient } from '@orpc/server';
 
-    export const router: ${routerType};
+  export const router: ${routerType};
 
-    export const rpc: RouterClient<typeof router>;
-  }${generateGlobalDeclaration(ssr)}`;
+  export const rpc: RouterClient<typeof router>;
+}${generateGlobalDeclaration(ssr)}`;
 }
 
 export function generateTypeDefinitions(options: {

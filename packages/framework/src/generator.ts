@@ -221,19 +221,19 @@ export function getRouteParams(path) {
         .map((r) => `"${r.name}"`)
         .join(" | ") || "never";
 
-    return `export interface RouteRecord {
-  name: string;
-  path: string;
-  component: any;
-  params?: string[];
-  meta?: Record<string, any>;
-  alias?: string[];
-  children?: RouteRecord[];
-}
+    return `declare module "$oxide" {
+  export interface RouteRecord {
+    name: string;
+    path: string;
+    component: any;
+    params?: string[];
+    meta?: Record<string, any>;
+    alias?: string[];
+    children?: RouteRecord[];
+  }
 
-export type RouteNames = ${routeNames};
+  export type RouteNames = ${routeNames};
 
-declare module "$oxide" {
   export const routes: RouteRecord[];
   export default routes;
   export function findRouteByName(name: RouteNames): RouteRecord | undefined;

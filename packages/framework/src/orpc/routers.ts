@@ -135,5 +135,5 @@ export function buildRouterTypes(routers: RouterInfo[]): string {
     return `{\n${items.join(";\n")}\n${" ".repeat(indent - 2)}}`;
   }
 
-  return typeToString(tree);
+  return typeToString(tree, 4);
 }
