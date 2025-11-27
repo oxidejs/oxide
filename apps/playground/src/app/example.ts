@@ -1,7 +1,7 @@
 import { base } from "$lib/orpc";
 import { z } from "zod";
 
-export default {
+export const router = {
   ping: base.handler(async () => "pong"),
   greet: base
     .input(z.object({ name: z.string() }))

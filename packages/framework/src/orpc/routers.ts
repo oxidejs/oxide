@@ -66,7 +66,8 @@ export async function scanRouters(
 export function generateImports(routers: RouterInfo[]): string {
   return routers
     .map(
-      (router, index) => `import router${index} from './${router.importPath}';`,
+      (router, index) =>
+        `import * as mod${index} from './${router.importPath}';\nconst router${index} = mod${index}.router;`,
     )
     .join("\n");
 }
@@ -116,7 +117,7 @@ export function buildRouterTypes(routers: RouterInfo[]): string {
       current = current[segment];
     }
     current[router.name] =
-      `typeof import('../${router.importPath.replace(/\.(ts|js)$/, "")}').default`;
+      `typeof import('../${router.importPath.replace(/\.(ts|js)$/, "")}').router`;
   });
 
   function typeToString(obj: any, indent = 2): string {

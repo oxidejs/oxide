@@ -18,14 +18,22 @@ function formDataToJSON(formData: FormData, { skipBlobs = false } = {}) {
 }
 
 export function action<T = Record<string, any>>(
-  callback: (data: T, event: SubmitEvent) => void,
+  callback:
+    | ((data: T, event: SubmitEvent) => void)
+    | ((data: T) => Promise<any> | void),
 ): Attachment {
-  return (form: HTMLFormElement) => {
+  return (node: Element) => {
+    const form = node as HTMLFormElement;
     const onSubmit = (e: SubmitEvent) => {
       e.preventDefault();
       const fd = new FormData(form);
       const data = formDataToJSON(fd) as T;
-      callback(data, e);
+
+      if (callback.length > 1) {
+        (callback as any)(data, e);
+      } else {
+        (callback as any)(data);
+      }
     };
 
     form.addEventListener("submit", onSubmit);

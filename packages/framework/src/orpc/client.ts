@@ -77,18 +77,18 @@ function generateClientCode_Internal(
   // Add required imports based on SSR mode
   if (ssr) {
     parts.push(
-      "import { createRouterClient } from '@orpc/server';",
+      "import { createRouterClient, os } from '@orpc/server';",
       "import { createORPCClient } from '@orpc/client';",
       "import { RPCLink } from '@orpc/client/fetch';",
     );
+    parts.push("", `export const router = os.router(${routerObject});`);
   } else {
     parts.push(
       "import { createORPCClient } from '@orpc/client';",
       "import { RPCLink } from '@orpc/client/fetch';",
     );
+    parts.push("", `export const router = ${routerObject};`);
   }
-
-  parts.push("", `export const router = ${routerObject};`);
 
   if (ssr) {
     parts.push("", ...generateSSRSetup());
@@ -136,9 +136,9 @@ declare global {
 
 function generateModuleDeclaration(routerType: string, ssr: boolean): string {
   return `declare module "$oxide" {
-  import type { RouterClient } from '@orpc/server';
+  import type { RouterClient, Router } from '@orpc/server';
 
-  export const router: ${routerType};
+  export const router: Router<${routerType}, any>;
 
   export const rpc: RouterClient<typeof router>;
 }${generateGlobalDeclaration(ssr)}`;

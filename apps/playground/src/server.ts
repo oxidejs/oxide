@@ -17,13 +17,20 @@ const oxideHandler = new OxideHandler({
 
 export default {
   async fetch(request: Request) {
+    const authSession = await auth.api.getSession({ headers: request.headers });
     const oxideResult = await oxideHandler.handle(request);
     if (oxideResult.matched) {
       return oxideResult.response;
     }
     const orpcResult = await orpcHandler.handle(request, {
       prefix: "/rpc",
-      context: { kv, headers: request.headers, db },
+      context: {
+        kv,
+        headers: request.headers,
+        db,
+        user: authSession?.user,
+        session: authSession?.session,
+      },
     });
     if (orpcResult.matched) {
       return orpcResult.response;

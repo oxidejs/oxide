@@ -45,7 +45,8 @@ export function OxidePlugin(options: FsRouterOptions = {}): Plugin {
 
   let cachedModuleCode: string | null = null;
   let cachedTypeDefinitions: string | null = null;
-  let cachedRpcCode: string | null = null;
+  let cachedRpcCodeSSR: string | null = null;
+  let cachedRpcCodeClient: string | null = null;
   let cachedRpcTypes: string | null = null;
 
   function getDtsPath(): string {
@@ -66,6 +67,7 @@ export function OxidePlugin(options: FsRouterOptions = {}): Plugin {
 
       const totalRoutes = countRoutes(processedTree);
     } catch (error) {
+      console.error("[oxide] Route generation failed:", error);
       cachedModuleCode = `export const routes = [];\nexport default routes;`;
       cachedTypeDefinitions = `export type RouteNames = never;`;
     }
@@ -80,11 +82,18 @@ export function OxidePlugin(options: FsRouterOptions = {}): Plugin {
       });
 
       if (routers.length === 0) {
-        cachedRpcCode = generateClientCode({
+        cachedRpcCodeSSR = generateClientCode({
           routers: [],
           routerObject: "{}",
           imports: "",
-          ssr: opts.ssr!,
+          ssr: true,
+          clientUrl: opts.clientUrl,
+        });
+        cachedRpcCodeClient = generateClientCode({
+          routers: [],
+          routerObject: "{}",
+          imports: "",
+          ssr: false,
           clientUrl: opts.clientUrl,
         });
         cachedRpcTypes = generateEmptyTypeDefinitions({
@@ -97,11 +106,19 @@ export function OxidePlugin(options: FsRouterOptions = {}): Plugin {
       const routerObject = buildRouterObject(routers);
       const routerTypes = buildRouterTypes(routers);
 
-      cachedRpcCode = generateClientCode({
+      cachedRpcCodeSSR = generateClientCode({
         routers,
         routerObject,
         imports,
-        ssr: opts.ssr!,
+        ssr: true,
+        clientUrl: opts.clientUrl,
+      });
+
+      cachedRpcCodeClient = generateClientCode({
+        routers: [],
+        routerObject: "{}",
+        imports: "",
+        ssr: false,
         clientUrl: opts.clientUrl,
       });
 
@@ -114,14 +131,18 @@ export function OxidePlugin(options: FsRouterOptions = {}): Plugin {
         `[oxide] Generated RPC module with ${routers.length} routers`,
       );
     } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      console.error(`[oxide] RPC module generation failed: ${message}`);
-
-      cachedRpcCode = generateClientCode({
+      cachedRpcCodeSSR = generateClientCode({
         routers: [],
         routerObject: "{}",
         imports: "",
-        ssr: opts.ssr!,
+        ssr: true,
+        clientUrl: opts.clientUrl,
+      });
+      cachedRpcCodeClient = generateClientCode({
+        routers: [],
+        routerObject: "{}",
+        imports: "",
+        ssr: false,
         clientUrl: opts.clientUrl,
       });
       cachedRpcTypes = generateEmptyTypeDefinitions({ ssr: opts.ssr! });
@@ -255,7 +276,7 @@ export function OxidePlugin(options: FsRouterOptions = {}): Plugin {
       return null;
     },
 
-    load(id) {
+    load(id, options) {
       if (id === opts.virtualId) {
         // Generate the actual unified module code
         const routesCode =
@@ -263,16 +284,20 @@ export function OxidePlugin(options: FsRouterOptions = {}): Plugin {
           "export const routes = [];\nexport default routes;";
 
         let rpcCode = "export const rpc = null;\nexport const router = {};";
-        if (cachedRpcCode) {
+
+        const isSSR = options?.ssr === true;
+        const targetRpcCode = isSSR ? cachedRpcCodeSSR : cachedRpcCodeClient;
+
+        if (targetRpcCode) {
           // Include all RPC code but rename client export to rpc
-          rpcCode = cachedRpcCode
+          rpcCode = targetRpcCode
             .replace(
               "export const client = globalThis.$orpcClient ?? clientSideClient;",
               "export const rpc = globalThis.$orpcClient ?? clientSideClient;",
             )
             .replace(
-              "export const client = clientSideClient;",
-              "export const rpc = clientSideClient;",
+              "export const client = createORPCClient(link);",
+              "export const rpc = createORPCClient(link);",
             )
             .replace(
               /export default { router, client };/,

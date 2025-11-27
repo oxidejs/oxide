@@ -65,3 +65,12 @@
   <button type="button" class="btn btn-primary" onclick={sendOtp}>send otp</button>
   <button type="button" class="btn btn-primary" onclick={verifyOtp}>verify otp</button>
 </form>
+
+<hr />
+
+<form {@attach action(rpc.note.create)}>
+  <h2>Create Note</h2>
+  <input type="text" name="name" class="input" />
+  <textarea name="content" class="textarea"></textarea>
+  <button type="submit" class="btn btn-primary">submit</button>
+</form>
