@@ -1,31 +1,98 @@
 # Project Structure
 
-Learn where do modules and components belong to.
+Simple, organized structure for Oxide projects.
+
+## Basic Structure
 
 ```
-├── .oxide/ — Directory for build-time generated typings.
-├── node_modules/
+my-oxide-app/
 ├── src/
-│   ├── app/ — Directory for view routes and oRPC routers.
-│   ├── lib/ — Directory for your application's library.
-│   ├── app.css — Main styling entry.
-│   ├── app.svelte — Main app component.
-│   ├── client.ts — Client side app entry.
-│   └── server.ts — Server side app entry.
-├── .gitignore
-├── .prettierrc
-├── package.json
-├── README.md
-├── tsconfig.json
-└── vite.config.ts
+│   ├── app/                 # Routes and API
+│   │   ├── index.svelte     # Homepage (/)
+│   │   ├── about.svelte     # About page (/about)
+│   │   ├── users/
+│   │   │   └── [id].svelte  # User page (/users/123)
+│   │   └── api/
+│   │       ├── users.ts     # User API (/api/users/*)
+│   │       └── posts.ts     # Posts API (/api/posts/*)
+│   ├── lib/                 # Shared code
+│   │   ├── components/      # Reusable components
+│   │   ├── utils/           # Helper functions
+│   │   └── orpc/            # API setup
+│   ├── app.html             # HTML template
+│   ├── app.svelte           # Root component
+│   └── app.css              # Global styles
+├── .oxide/                  # Generated files
+│   └── types.d.ts           # Route types
+├── public/                  # Static files
+└── package.json
 ```
 
 ## src/app/
 
-The `src/app` directory is the heart of your full-stack application. You should add there all the view handlers and [oRPC routers](/orpc).
+Your routes and API endpoints:
 
-Read the dedicated [Routing](/routing) guide to learn more about the view routes.
+- `.svelte` files → web pages
+- `.ts` files → API routes
+- `index.svelte` → root path (`/`)
+- `[param].svelte` → dynamic routes
+- `(group)/` → organize without affecting URLs
 
 ## src/lib/
 
-The `src/lib` directory is where you should put your reusable UI components and utilities.
+Shared code and components:
+
+```
+src/lib/
+├── components/
+│   ├── ui/
+│   │   ├── Button.svelte
+│   │   └── Input.svelte
+│   └── forms/
+│       └── LoginForm.svelte
+├── utils/
+│   ├── format.ts
+│   └── validation.ts
+└── orpc/
+    ├── index.ts      # Base setup
+    ├── context.ts    # Request context
+    └── middleware.ts # Auth & logging
+```
+
+Import from `lib` using the `$lib` alias:
+
+```typescript
+import Button from "$lib/components/ui/Button.svelte";
+import { formatDate } from "$lib/utils/format";
+import { base } from "$lib/orpc";
+```
+
+## Generated Files
+
+Oxide automatically generates:
+
+- `.oxide/types.d.ts` - Route and API types
+- `.oxide/routes.json` - Route manifest
+
+Don't edit these files directly.
+
+## Static Assets
+
+Put static files in `public/`:
+
+```
+public/
+├── favicon.ico
+├── images/
+│   └── logo.svg
+└── robots.txt
+```
+
+Access them from root URL: `/favicon.ico`, `/images/logo.svg`
+
+## Configuration Files
+
+- `package.json` - Dependencies and scripts
+- `vite.config.ts` - Vite configuration with Oxide
+- `tailwind.config.js` - Tailwind CSS setup
+- `tsconfig.json` - TypeScript configuration

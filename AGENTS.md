@@ -30,31 +30,143 @@ This is a monorepo for Oxide, a Svelte Web framework with SSR support, built on 
 
 Refer to `docs/routing.md`. Requirements:
 
+#### Basic Route Resolution
+
 - If user adds a Svelte (.svelte) file under `src/app` or its nested directories and the file name doesn't have a corresponding folder with the same name, FS Router should consider this file a view route and render it under the pathname that equals the name of the file and its folder parents relative to `src/app`.
 - If the Svelte file has a corresponding folder that hosts other Svelte files, consider this file a layout for the view routes nested in the folder with the same name.
-- Only take alphanumeric names for the routes and directories and `(`, `)`, `[`, `]`. View routes may also take `.`.
-- Allow user to define route directories and route groups. Route directory is just an alphanumeric folder in `src/app` or its children. The name of the directory is appended to the pathname relatively to `src/app`. Route group is a folder with an alphanumeric name, surrounded with parentheses. Its name is not appended to the pathname.
-- Pathnames: `foo.svelte` in `src/app` directory (`src/app/foo.svelte`) should produce a view route with `/foo` pathname. `baz.svelte` in `bar` directory (`src/app/bar/baz.svelte`) should produce a view route under `/bar/baz` pathname. `baz.svelte` in a `(bar)` directory (`src/app/(bar)/baz.svelte`) should produce a view route under `/baz` pathname.
-- Allow user to define a dynamic pathname segments with an alphanumeric name surrounded by square brackets. `[uuid].svelte` file created under `src/app/bar` directory should allow for any pathname like `/bar/123` and `/bar/234` and render the view route defined with it. Dynamic path should also be valid for directory names, so `src/app/users/[userId]/invoices/[invoiceId].svelte` is a valid view route path and pathname like `/users/1/invoices/5` is valid and renders the view.
-- If user creates a `src/app/foo` directory, `src/app/foo.svelte` file, and `src/app/foo/bar.svelte` view route, treat the `src/app/foo.svelte` file as a layout that should have {@render children?.()} slot inside. IMPORTANT: Do not render `src/app/foo` as a view route.
-- Allow user to define catch-all routes with names like `[...rest].svelte` so having only `src/app/[...rest].svelte` catch-all route will make it render any pathname that user requests. This is a common pattern for 404 routes.
-- When building the app, generate type definitions under `.oxide/types.d.ts`. It should include definitions for all the routes found under `src/app` and all oRPC routers definitions.
-- Define an `$oxide` Vite virtual module that's the global helper for working with the framework. `$oxide` should export:
-  - `useRouter` function that allows consuming the router context. User should be able to `const router = useRouter()` and the router should have `push` method that takes a valid router pathname (see also `href` function in `$oxide`, it should use the same href validation), `replace`, `back`, `formward` methods, similar to History API, but with strong typing.
-  - `href` function that takes template literal in surrounded by "`". If user passes correct pathname to the href function, it returns the string, otherwise it throws an exception of invalid URL. It should have a strict type safety, so IDE shows diagnostic if the URL is not correct.
-  - `useRoute` function that allows consuming current route's context. It should return `{ location, params }`. `location` is a valid `Location` object. `params` are parsed from the route definition and pathname. If the route file is `src/app/bar/[id].svelte` and the pathname is `/bar/1`, then `params` is an object `{ id: "1" }`.
+- Special handling for `index.svelte` files: `src/app/index.svelte` renders at `/`, `src/app/foo/index.svelte` renders at `/foo`.
 
-### View routes
+#### File and Directory Naming
+
+- Only accept alphanumeric names (a-z, A-Z, 0-9), underscores, hyphens, and special route characters `(`, `)`, `[`, `]` for routes and directories.
+- View routes may also contain dots (`.`) for file extensions or special naming conventions.
+
+#### Route Types
+
+- **Route directories**: Alphanumeric folders in `src/app` or its children. The directory name is appended to the pathname relative to `src/app`.
+- **Route groups**: Folders with alphanumeric names surrounded by parentheses `(groupName)`. Their name is NOT appended to the pathname but provides organization.
+- **Dynamic routes**: Segments with names surrounded by square brackets `[param]` match any value at that position.
+- **Catch-all routes**: Segments named like `[...rest]` (`[...something]` surrounding) match any number of path segments.
+
+#### Route Examples
+
+- `src/app/foo.svelte` → `/foo`
+- `src/app/bar/baz.svelte` → `/bar/baz`
+- `src/app/(auth)/login.svelte` → `/login`
+- `src/app/users/[userId].svelte` → `/users/:userId`
+- `src/app/users/[userId]/invoices/[invoiceId].svelte` → `/users/:userId/invoices/:invoiceId`
+- `src/app/[...rest].svelte` → catch-all for unmatched routes (404)
+
+#### Layout System
+
+- If user creates `src/app/foo` directory, `src/app/foo.svelte` file, and `src/app/foo/bar.svelte` view route, treat `src/app/foo.svelte` as a layout with `{@render children?.()}` slot.
+- Layout files are NOT rendered as view routes themselves.
+- Layouts automatically wrap all nested routes within their directory.
+
+#### Route Priority (highest to lowest)
+
+1. Exact static routes (`/users`)
+2. Dynamic routes (`/users/[id]`)
+3. Catch-all routes (`/[...rest]`)
+
+#### Type Generation and Virtual Module
+
+- When building the app, generate type definitions under `.oxide/types.d.ts` including:
+  - All route definitions found under `src/app`
+  - All oRPC router definitions
+  - Parameter types for dynamic routes
+- Define `$oxide` Vite virtual module that exports:
+  - `useRouter()`: Returns router with `push(path)`, `replace(path)`, `back()`, `forward()` methods with type-safe path validation
+  - `href`: Tagged template literal function for type-safe URL construction: `href\`/users/${id}\``
+  - `useRoute()`: Returns `{ location: Location, params: Record<string, string>, query: URLSearchParams }`
+  - `rpc`: Isomorphic oRPC client (see oRPC section)
+
+#### Error Handling
+
+- Unmatched routes should render catch-all route if defined, otherwise built-in 404 page
+- Route parameter validation errors should be handled gracefully
+- Support for custom error boundaries at layout level
+
+### View Routes
 
 Refer to `docs/data-loading.md`, `docs/navigation.md`.
 
-- View route is a valid, non-layout, `.svelte` file as described in FS Router. It uses Svelte for templating.
-- Data loading: Oxide relies on async Svelte features that allow the global `await` keyword to fetch the data in given Svelte component. Oxide is a Server Side Rendering first framework, where you can also opt-out and create Single Page App. By default, if user does an action with global `await`, it happens server side.
+#### Basic Definition
 
-### oRPC integration
+- View route is a valid, non-layout `.svelte` file as described in FS Router
+- Uses Svelte 5 with strict TypeScript for templating and logic
+- Each view route corresponds to a URL pathname in the application
+
+#### Data Loading
+
+- Leverage async Svelte components with top-level `await` for data fetching
+- SSR-first approach: `await` operations execute server-side by default
+- Isomorphic data loading: same code works on server and client
+- Support for SPA mode opt-out where `await` operations execute client-side
+- Integration with oRPC client for optimized server communication
+
+#### Component Structure
+
+- Must use `<script lang="ts">` for TypeScript support
+- Support Svelte 5 runes for reactive state management
+- Access to framework utilities via `$oxide` imports
+- Automatic type inference for route parameters via `useRoute()`
+
+#### Rendering Modes
+
+- **SSR (default)**: Components rendered server-side, hydrated on client
+- **SPA**: Components rendered entirely client-side
+- **Static**: Pre-rendered at build time (where applicable)
+
+#### Error Handling
+
+- Support for error boundaries to catch and handle component errors
+- Automatic error page rendering for uncaught exceptions
+- Graceful degradation for data loading failures
+
+### oRPC Integration
 
 Refer to `docs/orpc.md`.
 
-- Besides the standard FS Router functions as described above, user should also be able to define oRPC routers in `src/app` directory (also nested under directories). oRPC routers, unlike view routes and layouts are created as TypeScript files with `.ts` extension.
-- Pathnames: oRPC routers by their nature should function as catch-all routes. Meaning a router defined under `src/app/foo.ts` can have procedures defined at top level and nested procedures. For example `{ bar, baz: { quux } }`. In this case there are 2 procedures, available under `/foo/bar` and `/foo/baz/quux` pathnames.
-- There is a new object exported from `$oxide` virtual module - `rpc` which is a client for the oRPC routers user defined. For the above pathnames example, it should export client with methods: `rpc.foo.bar` and `rpc.foo.baz.quux` that perform HTTP requests and return value defined in procedures. The `rpc` client is optimized for SSR and isomorphic, which means on the server side it doesn't perform extra HTTP request, but it executes procedure logic directly and returns the desired value. On client side it performs HTTP request.
+#### Router Definition
+
+- Define oRPC routers as TypeScript files with `.ts` extension in `src/app` directory
+- Routers can be nested under directories following same structure as view routes
+- Each router file exports a default router object with procedures
+- Support for nested procedure definitions within router objects
+
+#### URL Mapping
+
+- oRPC routers function as API endpoints under their file system path
+- Router at `src/app/api/users.ts` creates endpoints under `/api/users/*`
+- Nested procedures create nested endpoints: `{ find, create: { batch } }` → `/api/users/find`, `/api/users/create/batch`
+- HTTP method mapping: GET for queries, POST for mutations (following oRPC conventions)
+
+#### Type-Safe Client
+
+- `$oxide` virtual module exports `rpc` client with full type safety
+- Client methods mirror the router structure: `rpc.api.users.find(params)`
+- Automatic request/response type inference from router definitions
+- Support for input validation and output serialization
+
+#### Isomorphic Optimization
+
+- **Server-side**: Direct procedure execution without HTTP overhead
+- **Client-side**: HTTP requests to actual endpoints
+- Automatic detection of execution context
+- Shared validation and serialization logic
+
+#### Advanced Features
+
+- Support for streaming responses and Server-Sent Events
+- Middleware system for authentication, logging, and validation
+- OpenAPI specification generation from router definitions
+- Integration with Svelte's reactive system for real-time updates
+- Error handling with proper HTTP status codes and type-safe error responses
+
+#### Authentication & Middleware
+
+- Context system for passing authentication state
+- Middleware chain execution for procedures
+- Support for procedure-level and router-level guards
+- Integration with session management systems

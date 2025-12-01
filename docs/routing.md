@@ -1,51 +1,123 @@
 # Routing
 
-The file system based routing.
+Oxide uses file system routing. Create `.svelte` files in `src/app` and they become routes.
 
-## Routes folder structure
+## Basic Routes
 
 ```
 src/app/
-├── index.svelte
-├── user.svelte
-├── auth.svelte
-├── (auth)/
-│   └── login.svelte
-├── dashboard.svelte
-└── dashboard/
-    ├── index.svelte
-    └── invoices/
-        ├── index.svelte
-        └── [invoiceId].svelte
+├── index.svelte     → /
+├── about.svelte     → /about
+├── contact.svelte   → /contact
+└── blog/
+    └── index.svelte → /blog
 ```
 
-Following routes will be generated:
+## Dynamic Routes
 
-- `/` — renders the `index.svelte` view.
-- `/user` — renders the `user.svelte` view.
-- `/login` — renders the `(auth)/login.svelte` view.
-- `/dashboard` — renders the `dashboard/index.svelte` view.
-- `/dashboard/invoices` — renders the `dashboard/invoices/index.svelte` view.
-- `/dashboard/invoices/:invoiceId` — renders the `dashboard/invoices/[invoiceId].svelte` view.
+Use `[param]` for dynamic segments:
 
-## Typed Routes
+```
+src/app/
+├── users/
+│   └── [id].svelte          → /users/123
+├── blog/
+│   └── [slug].svelte        → /blog/my-post
+└── shop/
+    └── [category]/
+        └── [product].svelte → /shop/electronics/phone
+```
 
-The framework generated typed routes, so you can use them for `router.push` or `href` functions.
+Access parameters with `useRoute()`:
 
-```svelte twoslash
+```svelte
 <script lang="ts">
-  import { useRouter, href as h } from '$oxide'
+  import { useRoute } from '$oxide'
+
+  const route = useRoute()
+  const userId = $derived(route.params.id)
+</script>
+```
+
+## Catch-All Routes
+
+Use `[...param]` to match multiple segments:
+
+```
+src/app/
+└── docs/
+    └── [...path].svelte → /docs/guide/getting-started
+```
+
+## Route Groups
+
+Use `(group)` to organize without affecting URLs:
+
+```
+src/app/
+├── (auth)/
+│   ├── login.svelte    → /login
+│   └── register.svelte → /register
+└── (dashboard)/
+    ├── stats.svelte    → /stats
+    └── users.svelte    → /users
+```
+
+## Layouts
+
+Create layouts by matching folder and file names:
+
+```
+src/app/
+├── dashboard.svelte        ← Layout
+└── dashboard/
+    ├── index.svelte       → /dashboard
+    └── analytics.svelte   → /dashboard/analytics
+```
+
+Layout files need a `children` slot:
+
+```svelte
+<!-- dashboard.svelte -->
+<script lang="ts">
+  const { children } = $props()
+</script>
+
+<nav>Dashboard Nav</nav>
+{@render children?.()}
+```
+
+## Navigation
+
+Use `href` for type-safe links:
+
+```svelte
+<script lang="ts">
+  import { href } from '$oxide'
+</script>
+
+<a href={href`/users/${userId}`}>User Profile</a>
+```
+
+Use `useRouter()` for programmatic navigation:
+
+```svelte
+<script lang="ts">
+  import { useRouter, href } from '$oxide'
 
   const router = useRouter()
 
-  router.push('/')
-  /*          '/'
-              '/user'
-              '/dashboard'
-              '/dashboard/invoices'
-              '/dashboard/invoices/${string}'
-  */
+  function navigate() {
+    router.push(href`/dashboard`)
+  }
 </script>
+```
 
-<a href={h`/dashboard`}>Go to Dashboard</a>
+## 404 Pages
+
+Use catch-all routes for 404 handling:
+
+```
+src/app/
+└── [...notFound].svelte → catches all unmatched routes
 ```
