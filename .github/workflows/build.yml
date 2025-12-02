@@ -1,7 +1,9 @@
-name: Build and publish
+name: Build, test, and publish nightly
 
 on:
   push:
+    branches: ["main"]
+  pull_request:
     branches: ["main"]
   workflow_dispatch:
 
@@ -15,7 +17,10 @@ jobs:
         uses: oven-sh/setup-bun@v2
       - name: Install dependencies
         run: bun install
-      - name: Build
+      - name: Build framework
         run: bun run build:deps
+      - name: Run unit tests
+        run: bun run test
+        working-directory: packages/framework
       - name: Publish nightly
-        run: bunx pkg-pr-new publish './packages/framework' './packages/orpc'
+        run: bunx pkg-pr-new publish './packages/framework'
