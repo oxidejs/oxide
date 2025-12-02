@@ -1,5 +1,6 @@
 <script lang="ts">
   import { onMount, onDestroy, getContext, setContext } from 'svelte';
+  import { ROUTER_CONTEXT_KEY } from '@oxidejs/framework/client';
 
   export interface Location {
     pathname: string;
@@ -16,8 +17,6 @@
     location: () => Location;
     params: () => RouteParams;
   }
-
-  const ROUTER_CONTEXT_KEY = Symbol('router');
 
   function setRouterContext(context: RouterContext): void {
     setContext(ROUTER_CONTEXT_KEY, context);

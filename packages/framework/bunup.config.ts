@@ -10,4 +10,11 @@ export default defineConfig([
     clean: true,
     plugins: [copy(["src/components"])],
   },
+  {
+    entry: "src/client.ts",
+    format: "esm",
+    target: "browser",
+    outDir: "dist",
+    outFile: "client.js",
+  },
 ]);

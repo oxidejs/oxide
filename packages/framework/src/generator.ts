@@ -1,4 +1,10 @@
-import type { RouteNode, PluginContext, GeneratedCode } from "./types";
+import { RouteNode } from "./scanner.js";
+import { PluginContext } from "./types.js";
+
+export interface GeneratedOutput {
+  moduleCode: string;
+  typeDefinitions: string;
+}
 
 export class RouteGenerator {
   private context: PluginContext;
@@ -7,10 +13,9 @@ export class RouteGenerator {
     this.context = context;
   }
 
-  generate(tree: RouteNode): GeneratedCode {
-    const routes = this.buildNestedRoutes(tree);
-    const moduleCode = this.generateModule(routes, tree);
-    const typeDefinitions = this.generateTypes(routes, tree);
+  generate(routes: RouteNode[]): GeneratedOutput {
+    const moduleCode = this.generateModule(routes);
+    const typeDefinitions = this.generateTypes(routes);
 
     return {
       moduleCode,
@@ -18,29 +23,29 @@ export class RouteGenerator {
     };
   }
 
-  private generateModule(routes: RouteNode[], tree: RouteNode): string {
-    const { importMode = "async" } = this.context.options;
+  private generateModule(routes: RouteNode[]): string {
+    const imports = this.generateSyncImports(routes);
+    const routeEntries = this.generateRouteEntries(routes, "async");
+    const helperFunctions = this.generateHelperFunctions();
 
-    const flatRoutes = this.flattenRoutesForImports(routes);
-    const imports =
-      importMode === "sync" ? this.generateSyncImports(flatRoutes) : "";
+    return `${imports}${helperFunctions}
 
-    const routeEntries = this.generateRouteEntries(routes, importMode);
-    const routesArray = `export const routes = [\n${routeEntries.join(",\n")}\n];`;
+// Routes
+export const routes = [
+${routeEntries.join(",\n")}
+];
 
-    const helpers = this.generateHelperFunctions();
-    const virtualModuleExports = this.generateVirtualModuleExports();
-
-    return `${imports}${routesArray}\n\nexport default routes;\n\n${helpers}\n\n${virtualModuleExports}`;
+export default routes;`;
   }
 
-  private generateVirtualModuleExports(): string {
-    return `// Virtual module exports
+  private generateHelperFunctions(): string {
+    return `// Router utility functions
 import { getContext, setContext } from 'svelte';
 
 // Declare window for SSR compatibility
 const window = typeof globalThis !== 'undefined' && 'window' in globalThis ? globalThis.window : undefined;
 
+// Single shared Symbol instance
 const ROUTER_CONTEXT_KEY = Symbol('router');
 
 export function useRouter() {
@@ -212,256 +217,80 @@ export function setRouterContext(context) {
     return flattened;
   }
 
-  private generateHelperFunctions(): string {
-    return `// Route utilities
-function flattenRoutes(routes) {
-  const flattened = [];
+  private generateTypes(routes: RouteNode[]): string {
+    const routeNames = this.extractRouteNames(routes);
+    const paramTypes = this.generateParamTypes(routes);
 
-  function flatten(route, parentPath = '') {
-    const fullPath = parentPath === '/'
-      ? route.path
-      : parentPath && route.path !== '/'
-        ? parentPath + route.path
-        : route.path || parentPath;
+    return `// Auto-generated route types
+export type RouteNames = ${routeNames.length > 0 ? routeNames.map((name) => `"${name}"`).join(" | ") : "never"};
 
-    const flatRoute = { ...route, fullPath };
-    flattened.push(flatRoute);
+${paramTypes}
 
-    if (route.children && route.children.length > 0) {
-      route.children.forEach(child => {
-        flatten(child, fullPath === '/' ? '' : fullPath);
-      });
-    }
-  }
-
-  routes.forEach(route => flatten(route));
-  return flattened;
+// Router utility types
+export interface Location {
+  pathname: string;
+  search: string;
+  hash: string;
 }
 
-export function findRouteByName(name) {
-  const allRoutes = flattenRoutes(routes);
-  return allRoutes.find(route => route.name === name);
+export interface RouteParams {
+  [key: string]: string;
 }
 
-export function generatePath(name, params = {}) {
-  const route = findRouteByName(name);
-  if (!route) {
-    throw new Error("Route \\"" + name + "\\" not found");
-  }
-
-  let path = route.fullPath || route.path;
-
-  // Replace parameters
-  for (const [key, value] of Object.entries(params)) {
-    if (Array.isArray(value)) {
-      // Handle catch-all parameters
-      path = path.replace('*', value.join('/'));
-    } else {
-      // Handle regular parameters
-      path = path.replace(":" + key, encodeURIComponent(String(value)));
-    }
-  }
-
-  // Remove any remaining optional parameters
-  path = path.replace(/\\/:[^/]+\\?/g, '');
-
-  return path || '/';
+export interface Router {
+  push(path: string): void;
+  replace(path: string): void;
+  back(): void;
+  forward(): void;
 }
 
-export function getRouteParams(pathname, route) {
-  const params = {};
-  const pathSegments = pathname.split('/').filter(Boolean);
-  const routeSegments = (route.fullPath || route.path).split('/').filter(Boolean);
-
-  for (let i = 0; i < routeSegments.length; i++) {
-    const segment = routeSegments[i];
-    if (segment.startsWith(':')) {
-      const paramName = segment.slice(1);
-      params[paramName] = pathSegments[i] ? decodeURIComponent(pathSegments[i]) : '';
-    }
-  }
-
-  return params;
+export interface Route {
+  location: Location;
+  params: RouteParams;
+  query: URLSearchParams;
 }
 
-export function matchRoute(pathname) {
-  const allRoutes = flattenRoutes(routes);
-
-  // Sort by priority: static first, then dynamic, then catch-all
-  const sortedRoutes = allRoutes.sort((a, b) => {
-    const aPriority = getRoutePriority(a.fullPath || a.path);
-    const bPriority = getRoutePriority(b.fullPath || b.path);
-    return aPriority - bPriority;
-  });
-
-  for (const route of sortedRoutes) {
-    const result = matchSingleRoute(pathname, route);
-    if (result.matches) {
-      return { route, params: result.params, query: new URLSearchParams() };
-    }
-  }
-
-  return { route: null, params: {}, query: new URLSearchParams() };
-}
-
-function getRoutePriority(path) {
-  const segments = path.split('/').filter(Boolean);
-
-  for (const segment of segments) {
-    if (segment === '*') return 3; // Catch-all
-    if (segment.startsWith(':')) return 2; // Dynamic
-  }
-
-  return 1; // Static
-}
-
-function matchSingleRoute(pathname, route) {
-  const routePath = route.fullPath || route.path;
-  const params = {};
-
-  if (routePath === pathname) {
-    return { matches: true, params };
-  }
-
-  const pathSegments = pathname.split('/').filter(Boolean);
-  const routeSegments = routePath.split('/').filter(Boolean);
-
-  // Handle catch-all routes
-  if (routeSegments.includes('*')) {
-    const catchAllIndex = routeSegments.findIndex(seg => seg === '*');
-
-    // Check if all segments before catch-all match
-    let matches = true;
-    for (let i = 0; i < catchAllIndex; i++) {
-      if (i >= pathSegments.length) {
-        matches = false;
-        break;
-      }
-
-      const routeSegment = routeSegments[i];
-      const pathSegment = pathSegments[i];
-
-      if (routeSegment.startsWith(':')) {
-        const paramName = routeSegment.slice(1);
-        params[paramName] = decodeURIComponent(pathSegment);
-      } else if (routeSegment !== pathSegment) {
-        matches = false;
-        break;
-      }
-    }
-
-    if (matches) {
-      // Capture remaining segments for catch-all
-      const catchAllParam = route.params?.find(p =>
-        route.params.indexOf(p) === route.params.length - 1
-      ) || 'catchAll';
-
-      const remainingSegments = pathSegments.slice(catchAllIndex);
-      params[catchAllParam] = remainingSegments.join('/');
-
-      return { matches: true, params };
-    }
-
-    return { matches: false, params: {} };
-  }
-
-  // Handle regular dynamic routes
-  if (pathSegments.length !== routeSegments.length) {
-    return { matches: false, params: {} };
-  }
-
-  let matches = true;
-  for (let i = 0; i < routeSegments.length; i++) {
-    const routeSegment = routeSegments[i];
-    const pathSegment = pathSegments[i];
-
-    if (routeSegment.startsWith(':')) {
-      const paramName = routeSegment.slice(1);
-      params[paramName] = decodeURIComponent(pathSegment);
-    } else if (routeSegment !== pathSegment) {
-      matches = false;
-      break;
-    }
-  }
-
-  return { matches, params };
+export interface RouterContext {
+  navigate: (path: string, options?: { replace?: boolean }) => void;
+  location: () => Location;
+  params: () => RouteParams;
 }`;
   }
 
-  private buildNestedRoutes(tree: RouteNode): RouteNode[] {
-    if (!tree.children) {
-      return [];
-    }
+  private extractRouteNames(routes: RouteNode[]): string[] {
+    const names: string[] = [];
 
-    return tree.children.filter((route) => route.hasComponent);
-  }
-
-  private generateTypes(routes: RouteNode[], tree: RouteNode): string {
-    const routeNames = this.generateRouteNames(routes);
-    const routeParamTypes = this.generateRouteParamTypes(routes);
-
-    return `declare module "$oxide" {
-  import type { Router, Route } from './virtual';
-
-  export interface RouteRecord {
-    name: string;
-    path: string;
-    fullPath?: string;
-    component: any;
-    params?: string[];
-    meta?: Record<string, any>;
-    alias?: string[];
-    children?: RouteRecord[];
-  }
-
-  export const routes: RouteRecord[];
-
-  export function useRouter(): Router;
-  export function useRoute(): Route;
-  export function href(strings: TemplateStringsArray, ...values: any[]): string;
-
-  export function findRouteByName(name: string): RouteRecord | undefined;
-  export function generatePath(name: string, params?: Record<string, any>): string;
-  export function matchRoute(pathname: string): { route: RouteRecord | null; params: Record<string, any>; query: URLSearchParams };
-
-  ${routeNames}
-  ${routeParamTypes}
-}`;
-  }
-
-  private generateRouteNames(routes: RouteNode[]): string {
-    const allRoutes = this.flattenRoutesForImports(routes);
-    const names = allRoutes.map((route) => `"${route.name}"`);
-
-    return names.length > 0
-      ? `export type RouteNames = ${names.join(" | ")};`
-      : `export type RouteNames = never;`;
-  }
-
-  private generateRouteParamTypes(routes: RouteNode[]): string {
-    const allRoutes = this.flattenRoutesForImports(routes);
-    const paramInterfaces: string[] = [];
-
-    allRoutes.forEach((route) => {
-      if (route.params.length > 0) {
-        const params = route.params
-          .map((param) => {
-            const paramName = param.replace(/[[\]\.]/g, "");
-            return `  ${paramName}: string;`;
-          })
-          .join("\n");
-
-        paramInterfaces.push(`  "${route.name}": {\n${params}\n  };`);
-      } else {
-        paramInterfaces.push(`  "${route.name}": Record<string, never>;`);
+    const extractFromRoute = (route: RouteNode) => {
+      if (route.name) {
+        names.push(route.name);
       }
-    });
+      if (route.children) {
+        route.children.forEach(extractFromRoute);
+      }
+    };
 
-    const interfaceBody =
-      paramInterfaces.length > 0
-        ? `{\n${paramInterfaces.join("\n")}\n}`
-        : "Record<string, Record<string, never>>";
+    routes.forEach(extractFromRoute);
+    return names;
+  }
 
-    return `export interface RouteParams ${interfaceBody}`;
+  private generateParamTypes(routes: RouteNode[]): string {
+    const paramTypes: string[] = [];
+
+    const extractParamsFromRoute = (route: RouteNode) => {
+      if (route.params && route.params.length > 0 && route.name) {
+        const paramType = route.params
+          .map((param) => `${param}: string`)
+          .join("; ");
+        paramTypes.push(
+          `export interface ${route.name}Params { ${paramType} }`,
+        );
+      }
+      if (route.children) {
+        route.children.forEach(extractParamsFromRoute);
+      }
+    };
+
+    routes.forEach(extractParamsFromRoute);
+    return paramTypes.join("\n");
   }
 }

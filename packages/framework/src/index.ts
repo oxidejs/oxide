@@ -14,5 +14,12 @@ export type {
   RouteParams,
   Route,
   Router as RouterInterface,
+  RouterContext,
 } from "./virtual";
-export { useRouter, useRoute, href, setRouterContext } from "./virtual";
+export {
+  useRouter,
+  useRoute,
+  href,
+  setRouterContext,
+  ROUTER_CONTEXT_KEY,
+} from "./virtual";

@@ -56,9 +56,8 @@ describe("Virtual Module", () => {
     });
 
     test("back and forward methods work in browser environment", () => {
-      const mockNavigate = mock(() => {});
       const mockContext = {
-        navigate: mockNavigate,
+        navigate: mock(() => {}),
         location: () => ({ pathname: "/", search: "", hash: "" }),
         params: () => ({}),
       };
@@ -71,18 +70,32 @@ describe("Virtual Module", () => {
         forward: mock(() => {}),
       };
 
-      Object.defineProperty(global, "window", {
+      // Mock globalThis to have window property
+      const originalWindow = (globalThis as any).window;
+      Object.defineProperty(globalThis, "window", {
         value: { history: mockHistory },
         writable: true,
+        configurable: true,
       });
 
-      const router = virtualModule.useRouter();
+      // Force re-import to pick up new window mock
+      jest.resetModules();
+      const virtualModuleReloaded = require("../src/virtual");
+
+      const router = virtualModuleReloaded.useRouter();
 
       router.back();
       expect(mockHistory.back).toHaveBeenCalled();
 
       router.forward();
       expect(mockHistory.forward).toHaveBeenCalled();
+
+      // Clean up
+      if (originalWindow) {
+        (globalThis as any).window = originalWindow;
+      } else {
+        delete (globalThis as any).window;
+      }
     });
   });
 

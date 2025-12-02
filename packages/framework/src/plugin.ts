@@ -60,7 +60,10 @@ export function OxidePlugin(options: FsRouterOptions = {}): Plugin {
     try {
       const scanResult = await scanner.scan();
       const processedTree = await scanner.applyHooks(scanResult.tree);
-      const generated = generator.generate(processedTree);
+      // Extract routes from the processed tree
+      const routes =
+        processedTree.children?.filter((route) => route.hasComponent) || [];
+      const generated = generator.generate(routes);
 
       cachedModuleCode = generated.moduleCode;
       cachedTypeDefinitions = generated.typeDefinitions;

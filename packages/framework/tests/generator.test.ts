@@ -58,7 +58,8 @@ describe("RouteGenerator", () => {
       hasComponent: false,
     };
 
-    const result = generator.generate(tree);
+    const routes = tree.children?.filter((route) => route.hasComponent) || [];
+    const result = generator.generate(routes);
 
     expect(result.moduleCode).toContain("export const routes = [");
     expect(result.moduleCode).toContain('name: "index"');
@@ -85,7 +86,8 @@ describe("RouteGenerator", () => {
       hasComponent: false,
     };
 
-    const result = generator.generate(tree);
+    const routes = tree.children?.filter((route) => route.hasComponent) || [];
+    const result = generator.generate(routes);
 
     expect(result.moduleCode).toContain('() => import("./index.svelte")');
     expect(result.moduleCode).not.toContain("import Component_");
@@ -112,7 +114,8 @@ describe("RouteGenerator", () => {
       hasComponent: false,
     };
 
-    const result = generator.generate(tree);
+    const routes = tree.children?.filter((route) => route.hasComponent) || [];
+    const result = generator.generate(routes);
 
     expect(result.moduleCode).toContain(
       'import Component_0 from "./index.svelte"',
@@ -138,7 +141,8 @@ describe("RouteGenerator", () => {
       hasComponent: false,
     };
 
-    const result = generator.generate(tree);
+    const routes = tree.children?.filter((route) => route.hasComponent) || [];
+    const result = generator.generate(routes);
 
     expect(result.moduleCode).toContain('params: ["id"]');
   });
@@ -161,7 +165,8 @@ describe("RouteGenerator", () => {
       hasComponent: false,
     };
 
-    const result = generator.generate(tree);
+    const routes = tree.children?.filter((route) => route.hasComponent) || [];
+    const result = generator.generate(routes);
 
     expect(result.moduleCode).toContain(
       'meta: {"requiresAuth":true,"title":"Protected Page"}',
@@ -186,7 +191,8 @@ describe("RouteGenerator", () => {
       hasComponent: false,
     };
 
-    const result = generator.generate(tree);
+    const routes = tree.children?.filter((route) => route.hasComponent) || [];
+    const result = generator.generate(routes);
 
     expect(result.moduleCode).toContain('alias: ["/","/index"]');
   });
@@ -220,7 +226,8 @@ describe("RouteGenerator", () => {
       hasComponent: false,
     };
 
-    const result = generator.generate(tree);
+    const routes = tree.children?.filter((route) => route.hasComponent) || [];
+    const result = generator.generate(routes);
 
     expect(result.moduleCode).toContain("children: [");
     expect(result.moduleCode).toContain('name: "users-index"');
@@ -239,7 +246,8 @@ describe("RouteGenerator", () => {
       hasComponent: false,
     };
 
-    const result = generator.generate(tree);
+    const routes = tree.children?.filter((route) => route.hasComponent) || [];
+    const result = generator.generate(routes);
 
     expect(result.moduleCode).toContain("function flattenRoutes(routes)");
     expect(result.moduleCode).toContain(
@@ -266,7 +274,8 @@ describe("RouteGenerator", () => {
       hasComponent: false,
     };
 
-    const result = generator.generate(tree);
+    const routes = tree.children?.filter((route) => route.hasComponent) || [];
+    const result = generator.generate(routes);
 
     expect(result.moduleCode).toContain("export function useRouter() {");
     expect(result.moduleCode).toContain("export function useRoute() {");
@@ -297,7 +306,8 @@ describe("RouteGenerator", () => {
       hasComponent: false,
     };
 
-    const result = generator.generate(tree);
+    const routes = tree.children?.filter((route) => route.hasComponent) || [];
+    const result = generator.generate(routes);
 
     expect(result.typeDefinitions).toContain('declare module "$oxide"');
     expect(result.typeDefinitions).toContain("export interface RouteRecord");
@@ -335,7 +345,8 @@ describe("RouteGenerator", () => {
       hasComponent: false,
     };
 
-    const result = generator.generate(tree);
+    const routes = tree.children?.filter((route) => route.hasComponent) || [];
+    const result = generator.generate(routes);
 
     expect(result.typeDefinitions).toContain(
       '"docs-catch-path": {\n  path: string;\n  }',
@@ -360,7 +371,8 @@ describe("RouteGenerator", () => {
       hasComponent: false,
     };
 
-    const result = generator.generate(tree);
+    const routes = tree.children?.filter((route) => route.hasComponent) || [];
+    const result = generator.generate(routes);
 
     expect(result.typeDefinitions).toContain('"static": Record<string, never>');
   });
@@ -386,7 +398,8 @@ describe("RouteGenerator", () => {
       hasComponent: false,
     };
 
-    const result = generator.generate(tree);
+    const routes = tree.children?.filter((route) => route.hasComponent) || [];
+    const result = generator.generate(routes);
 
     expect(result.moduleCode).toContain('name: "with-component"');
     expect(result.moduleCode).not.toContain('name: "without-component"');
@@ -404,7 +417,8 @@ describe("RouteGenerator", () => {
       hasComponent: false,
     };
 
-    const result = generator.generate(tree);
+    const routes = tree.children?.filter((route) => route.hasComponent) || [];
+    const result = generator.generate(routes);
 
     expect(result.moduleCode).toContain("export default routes;");
   });
