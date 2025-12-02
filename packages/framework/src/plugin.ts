@@ -64,8 +64,6 @@ export function OxidePlugin(options: FsRouterOptions = {}): Plugin {
 
       cachedModuleCode = generated.moduleCode;
       cachedTypeDefinitions = generated.typeDefinitions;
-
-      const totalRoutes = countRoutes(processedTree);
     } catch (error) {
       console.error("[oxide] Route generation failed:", error);
       cachedModuleCode = `export const routes = [];\nexport default routes;`;
@@ -126,10 +124,6 @@ export function OxidePlugin(options: FsRouterOptions = {}): Plugin {
         routerTypes,
         ssr: opts.ssr!,
       });
-
-      console.log(
-        `[oxide] Generated RPC module with ${routers.length} routers`,
-      );
     } catch (error) {
       cachedRpcCodeSSR = generateClientCode({
         routers: [],
@@ -165,7 +159,6 @@ export function OxidePlugin(options: FsRouterOptions = {}): Plugin {
       );
 
       cachedTypeDefinitions = unifiedTypes;
-      console.log(`[oxide] Writing types file to: ${typesPath}`);
       await fs.writeFile(typesPath, cachedTypeDefinitions);
     }
   }
@@ -305,8 +298,10 @@ export function OxidePlugin(options: FsRouterOptions = {}): Plugin {
             );
         }
 
-        return `${routesCode}\n\n// RPC exports\n${rpcCode}`;
+        const result = `${routesCode}\n\n// RPC exports\n${rpcCode}`;
+        return result;
       }
+      return null;
     },
 
     async handleHotUpdate({ file, server }) {
@@ -338,7 +333,6 @@ export function OxidePlugin(options: FsRouterOptions = {}): Plugin {
         if (opts.dts && cachedTypeDefinitions) {
           const typesPath = resolve(root, getDtsPath());
           await fs.mkdir(resolve(root, ".oxide"), { recursive: true });
-          console.log(`[oxide] Hot reload - updating types file: ${typesPath}`);
           await fs.writeFile(typesPath, cachedTypeDefinitions);
         }
       }

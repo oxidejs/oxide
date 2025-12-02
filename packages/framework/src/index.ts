@@ -7,3 +7,12 @@ export type {
   RouteRecord,
   PluginContext,
 } from "./types";
+
+// Virtual module types and utilities
+export type {
+  Location,
+  RouteParams,
+  Route,
+  Router as RouterInterface,
+} from "./virtual";
+export { useRouter, useRoute, href, setRouterContext } from "./virtual";

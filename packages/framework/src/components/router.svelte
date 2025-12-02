@@ -1,6 +1,28 @@
 <script lang="ts">
   import { onMount, onDestroy, getContext, setContext } from 'svelte';
 
+  export interface Location {
+    pathname: string;
+    search: string;
+    hash: string;
+  }
+
+  export interface RouteParams {
+    [key: string]: string;
+  }
+
+  interface RouterContext {
+    navigate: (path: string, options?: { replace?: boolean }) => void;
+    location: () => Location;
+    params: () => RouteParams;
+  }
+
+  const ROUTER_CONTEXT_KEY = Symbol('router');
+
+  function setRouterContext(context: RouterContext): void {
+    setContext(ROUTER_CONTEXT_KEY, context);
+  }
+
   type RouterStatus = 'ready' | 'loading' | 'not-found' | 'error';
 
   interface RouterProps {
@@ -17,10 +39,10 @@
   // Router state
   let routes: any[] = $state([]);
   let routerState = $state<RouterStatus>('ready');
-  let currentLocation = $state({ pathname: '/', search: '', hash: '' });
+  let currentLocation = $state<Location>({ pathname: '/', search: '', hash: '' });
   let currentRoute = $state<any>(null);
-  let currentParams = $state<Record<string, string>>({});
-  let currentComponent = $state<any>(null);
+  let currentParams = $state<RouteParams>({});
+  let currentComponents = $state<any[]>([]);
   let routerError = $state<Error | null>(null);
   let isNavigating = $state(false);
 
@@ -30,6 +52,7 @@
       const routesModule = await import('$oxide');
       routes = routesModule.routes || [];
     } catch (error) {
+      console.error('Failed to load routes:', error);
       routes = [];
       routerState = 'not-found';
     }
@@ -45,34 +68,15 @@
     updateLocation();
   }
 
-  function generatePath(name: string, params: Record<string, any> = {}) {
-    const route = findRouteByName(name);
-    if (!route) {
-      throw new Error(`Route "${name}" not found`);
-    }
-
-    let path = route.path;
-    for (const [key, value] of Object.entries(params)) {
-      if (Array.isArray(value)) {
-        path = path.replace('*', value.join('/'));
-        continue;
-      }
-      const paramRegex = new RegExp(`:${key}\\??`, 'g');
-      path = path.replace(paramRegex, String(value));
-    }
-    path = path.replace(/\/:[^/]+\?/g, '');
-    return path || '/';
-  }
-
-  // Router context
+  // Router context for virtual module
   const routerContext = {
     navigate,
     location: () => currentLocation,
-    route: () => currentRoute,
     params: () => currentParams,
-    generatePath
   };
-  setContext('router', routerContext);
+
+  // Set context for virtual module functions
+  setRouterContext(routerContext);
 
   // Route utilities
   function findRouteByName(name: string): any {
@@ -90,20 +94,23 @@
   }
 
   function findMatchingRoute(pathname: string): any {
-    function searchRoutes(routeList: any[], parentPath = '', ancestors: any[] = []): any {
+    async function searchRoutes(routeList: any[], parentPath = '', ancestors: any[] = []): Promise<any> {
       for (const route of routeList) {
         const routePath = buildRoutePath(parentPath, route.path);
+        const matchResult = matchSingleRoute(pathname, route, routePath);
 
-        if (routePath === pathname) {
+        if (matchResult.matches) {
           return {
             leafRoute: route,
-            layoutChain: ancestors,
-            params: extractParams(pathname, route, routePath)
+            layoutChain: ancestors.filter(a => a.hasComponent),
+            params: matchResult.params,
+            fullPath: routePath
           };
         }
 
         if (route.children?.length > 0) {
-          const childMatch = searchRoutes(route.children, routePath, [...ancestors, route]);
+          const newAncestors = route.hasComponent ? [...ancestors, route] : ancestors;
+          const childMatch = await searchRoutes(route.children, routePath, newAncestors);
           if (childMatch) return childMatch;
         }
       }
@@ -118,28 +125,80 @@
       return routePath.startsWith('/') ? routePath : '/' + routePath;
     }
 
-    const combined = `${parentPath}/${routePath}`.replace(/\/+/g, '/');
+    const combined = `${parentPath}${routePath}`.replace(/\/+/g, '/');
     return combined.startsWith('/') ? combined : '/' + combined;
   }
 
-  function extractParams(pathname: string, route: any, routePath: string): Record<string, string> {
+  function matchSingleRoute(pathname: string, route: any, routePath: string) {
     const params: Record<string, string> = {};
+
+    if (routePath === pathname) {
+      return { matches: true, params };
+    }
+
     const pathSegments = pathname.split('/').filter(Boolean);
     const routeSegments = routePath.split('/').filter(Boolean);
 
+    // Handle catch-all routes
+    if (routeSegments.includes('*')) {
+      const catchAllIndex = routeSegments.findIndex(seg => seg === '*');
+
+      let matches = true;
+      for (let i = 0; i < catchAllIndex; i++) {
+        if (i >= pathSegments.length) {
+          matches = false;
+          break;
+        }
+
+        const routeSegment = routeSegments[i];
+        const pathSegment = pathSegments[i];
+
+        if (routeSegment.startsWith(':')) {
+          const paramName = routeSegment.slice(1);
+          params[paramName] = decodeURIComponent(pathSegment);
+        } else if (routeSegment !== pathSegment) {
+          matches = false;
+          break;
+        }
+      }
+
+      if (matches) {
+        const catchAllParam = route.params?.find((p: string) =>
+          p.startsWith('catch-') || route.params.indexOf(p) === route.params.length - 1
+        ) || 'catchAll';
+
+        const remainingSegments = pathSegments.slice(catchAllIndex);
+        const paramName = catchAllParam.startsWith('catch-')
+          ? catchAllParam.replace('catch-', '')
+          : catchAllParam;
+
+        params[paramName] = remainingSegments.join('/');
+        return { matches: true, params };
+      }
+
+      return { matches: false, params: {} };
+    }
+
+    // Handle regular dynamic routes
+    if (pathSegments.length !== routeSegments.length) {
+      return { matches: false, params: {} };
+    }
+
+    let matches = true;
     for (let i = 0; i < routeSegments.length; i++) {
       const routeSegment = routeSegments[i];
       const pathSegment = pathSegments[i];
 
-      if (routeSegment?.startsWith(':')) {
-        const paramName = routeSegment.replace(/^:|[?*]$/g, '');
-        if (pathSegment !== undefined) {
-          params[paramName] = decodeURIComponent(pathSegment);
-        }
+      if (routeSegment.startsWith(':')) {
+        const paramName = routeSegment.slice(1);
+        params[paramName] = decodeURIComponent(pathSegment);
+      } else if (routeSegment !== pathSegment) {
+        matches = false;
+        break;
       }
     }
 
-    return params;
+    return { matches, params };
   }
 
   // Location and route updates
@@ -163,30 +222,56 @@
       hash: url.hash
     };
 
-    const matchResult = findMatchingRoute(pathname);
+    try {
+      const matchResult = await findMatchingRoute(pathname);
 
-    if (matchResult) {
-      try {
+      if (matchResult) {
         currentRoute = matchResult.leafRoute;
         currentParams = matchResult.params;
         await loadRouteComponents(matchResult);
         routerState = 'ready';
         isNavigating = false;
         return;
-      } catch (error) {
-        console.error('Failed to load route:', error);
-        routerError = error as Error;
-        routerState = 'error';
+      }
+
+      // No route matched - check for catch-all
+      const catchAllRoute = findCatchAllRoute();
+      if (catchAllRoute) {
+        currentRoute = catchAllRoute;
+        currentParams = { catchAll: pathname.slice(1) };
+        await loadRouteComponents({ leafRoute: catchAllRoute, layoutChain: [], params: currentParams });
+        routerState = 'ready';
         isNavigating = false;
         return;
       }
-    }
 
-    currentRoute = null;
-    currentParams = {};
-    currentComponent = null;
-    routerState = 'not-found';
-    isNavigating = false;
+      currentRoute = null;
+      currentParams = {};
+      currentComponents = [];
+      routerState = 'not-found';
+      isNavigating = false;
+    } catch (error) {
+      console.error('Failed to update location:', error);
+      routerError = error as Error;
+      routerState = 'error';
+      isNavigating = false;
+    }
+  }
+
+  function findCatchAllRoute(): any {
+    function search(routeList: any[]): any {
+      for (const route of routeList) {
+        if (route.path.includes('*')) {
+          return route;
+        }
+        if (route.children) {
+          const found = search(route.children);
+          if (found) return found;
+        }
+      }
+      return null;
+    }
+    return search(routes);
   }
 
   // Component loading
@@ -194,22 +279,31 @@
     const { leafRoute, layoutChain } = matchResult;
 
     try {
-      const leafComponent = await loadComponent(leafRoute.component);
+      const components = [];
 
+      // Load layout components
       if (layoutChain?.length > 0) {
-        const loadedLayouts = await Promise.all(
-          layoutChain.map((layout: any) => loadComponent(layout.component))
-        );
-
-        currentComponent = {
-          isLayout: true,
-          layouts: loadedLayouts,
-          leafComponent
-        };
-      } else {
-        currentComponent = { isLayout: false, component: leafComponent };
+        for (const layout of layoutChain) {
+          const layoutComponent = await loadComponent(layout.component);
+          components.push({
+            type: 'layout',
+            component: layoutComponent,
+            route: layout
+          });
+        }
       }
 
+      // Load leaf component
+      if (leafRoute.hasComponent) {
+        const leafComponent = await loadComponent(leafRoute.component);
+        components.push({
+          type: 'page',
+          component: leafComponent,
+          route: leafRoute
+        });
+      }
+
+      currentComponents = components;
       routerState = 'ready';
     } catch (error) {
       console.error('Failed to load components:', error);
@@ -262,7 +356,11 @@
 
         currentRoute = ssrRoute.leafRoute;
         currentParams = ssrRoute.params;
-        currentComponent = { isLayout: false, component: ssrRoute.leafRoute.component };
+        currentComponents = [{
+          type: 'page',
+          component: ssrRoute.leafRoute.component,
+          route: ssrRoute.leafRoute
+        }];
         routerState = 'ready';
       }
     } catch {
@@ -310,13 +408,8 @@
   </div>
 {/if}
 
-{#if routerState === 'ready' && currentComponent}
-  {#if currentComponent.isLayout}
-    {@render renderLayouts(currentComponent.layouts, currentComponent.leafComponent)}
-  {:else}
-    {@const Component = currentComponent.component}
-    <Component params={currentParams} {...currentParams} />
-  {/if}
+{#if routerState === 'ready' && currentComponents.length > 0}
+  {@render renderComponents(currentComponents, 0)}
 {/if}
 
 {#if routerState === 'not-found'}
@@ -328,6 +421,7 @@
       <div class="text-center">
         <h1 class="text-4xl font-bold text-gray-800 mb-4">404 - Page Not Found</h1>
         <p class="text-gray-600">The page you are looking for could not be found.</p>
+        <p class="text-sm text-gray-500 mt-4">Path: {currentLocation.pathname}</p>
       </div>
     {/if}
   </div>
@@ -352,18 +446,19 @@
   </div>
 {/if}
 
-{#snippet renderLayouts(layouts, leafComponent)}
-  {#if layouts.length > 0}
-    {@const Layout = layouts[0]}
-    <Layout params={currentParams} {...currentParams}>
-      {#snippet children()}
-        {#if layouts.length > 1}
-          {@render renderLayouts(layouts.slice(1), leafComponent)}
-        {:else}
-          {@const LeafComponent = leafComponent}
-          <LeafComponent params={currentParams} {...currentParams} />
-        {/if}
-      {/snippet}
-    </Layout>
+{#snippet renderComponents(components, index)}
+  {#if index < components.length}
+    {@const comp = components[index]}
+    {@const Component = comp.component}
+
+    {#if comp.type === 'layout'}
+      <Component params={currentParams} {...currentParams}>
+        {#snippet children()}
+          {@render renderComponents(components, index + 1)}
+        {/snippet}
+      </Component>
+    {:else}
+      <Component params={currentParams} {...currentParams} />
+    {/if}
   {/if}
 {/snippet}

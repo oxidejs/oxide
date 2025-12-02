@@ -1,5 +1,5 @@
-import { join, relative, extname } from "node:path";
-import { readdir } from "node:fs/promises";
+import { join, relative, extname, basename } from "node:path";
+import { readdir, stat } from "node:fs/promises";
 import type { RouteNode, PluginContext, ScanResult } from "./types";
 
 export class RouteScanner {
@@ -10,7 +10,7 @@ export class RouteScanner {
   }
 
   async scan(): Promise<ScanResult> {
-    const { pagesDir = "src/pages", extensions = [".svelte"] } =
+    const { pagesDir = "src/app", extensions = [".svelte"] } =
       this.context.options;
     const pagesPath = join(this.context.root, pagesDir);
 
@@ -32,10 +32,16 @@ export class RouteScanner {
         const fullPath = join(dir, entry.name);
 
         if (entry.isDirectory()) {
-          const subFiles = await this.scanFiles(fullPath, extensions);
-          files.push(...subFiles);
+          // Skip hidden directories and node_modules
+          if (!entry.name.startsWith(".") && entry.name !== "node_modules") {
+            const subFiles = await this.scanFiles(fullPath, extensions);
+            files.push(...subFiles);
+          }
         } else if (entry.isFile() && extensions.includes(extname(entry.name))) {
-          files.push(fullPath);
+          // Check if filename is valid before adding
+          if (this.isValidFileName(entry.name)) {
+            files.push(fullPath);
+          }
         }
       }
     } catch {
@@ -60,127 +66,157 @@ export class RouteScanner {
       hasComponent: false,
     };
 
-    const routeMap = await this.buildRouteMap(files, pagesDir);
-    this.organizeRoutesIntoTree(root, routeMap);
+    // Create route nodes for all files
+    const routeMap = new Map<string, RouteNode>();
+    for (const file of files) {
+      const relativePath = relative(pagesDir, file);
+      const route = await this.createRouteFromFile(relativePath, file);
+      if (route) {
+        routeMap.set(relativePath, route);
+      }
+    }
+
+    // Organize routes: layouts and their children
+    await this.organizeRoutes(root, routeMap, pagesDir);
 
     return root;
   }
 
-  private async buildRouteMap(
-    files: string[],
+  private async organizeRoutes(
+    root: RouteNode,
+    routeMap: Map<string, RouteNode>,
     pagesDir: string,
-  ): Promise<Map<string, RouteNode>> {
-    const routeMap = new Map<string, RouteNode>();
+  ): Promise<void> {
+    const processedPaths = new Set<string>();
 
-    for (const file of files) {
-      try {
-        const relativePath = relative(pagesDir, file);
-        const route = await this.createRouteFromFile(relativePath, file);
-        if (route?.name && route.path !== undefined) {
-          routeMap.set(relativePath, route);
-        }
-      } catch {
-        continue;
-      }
-    }
+    // Recursively process layouts starting from root level
+    await this.processLayoutLevel(root, routeMap, pagesDir, processedPaths, []);
 
-    return routeMap;
-  }
-
-  private organizeRoutesIntoTree(
-    root: RouteNode,
-    routeMap: Map<string, RouteNode>,
-  ): void {
-    const layouts = new Map<string, RouteNode>();
-    const pages = new Map<string, RouteNode[]>();
-
-    // Group routes by their directory structure
+    // Add remaining files that aren't part of layouts
     for (const [relativePath, route] of routeMap) {
-      const pathSegments = this.getPathSegments(relativePath);
+      if (!processedPaths.has(relativePath)) {
+        // Check if this file is part of any layout hierarchy
+        const segments = this.getPathSegments(relativePath);
+        let isPartOfLayout = false;
 
-      if (pathSegments.length === 1) {
-        this.handleTopLevelFile(
-          pathSegments[0],
-          route,
-          layouts,
-          pages,
-          routeMap,
-        );
-      } else {
-        this.handleNestedFile(pathSegments, route, pages);
+        // Check if any parent directory has a corresponding layout file
+        for (let i = 1; i < segments.length; i++) {
+          const parentPath = segments.slice(0, i).join("/") + ".svelte";
+          if (routeMap.has(parentPath)) {
+            isPartOfLayout = true;
+            break;
+          }
+        }
+
+        if (!isPartOfLayout) {
+          // This is a standalone route (not part of any layout)
+          root.children.push(route);
+        }
       }
     }
-
-    // Build the final tree structure
-    this.buildFinalTree(root, layouts, pages);
   }
 
-  private getPathSegments(relativePath: string): string[] {
-    const pathWithoutExt = relativePath.replace(/\.[^.]+$/, "");
-    return pathWithoutExt.split("/").filter(Boolean);
-  }
-
-  private handleTopLevelFile(
-    layoutKey: string,
-    route: RouteNode,
-    layouts: Map<string, RouteNode>,
-    pages: Map<string, RouteNode[]>,
+  private async processLayoutLevel(
+    parentNode: RouteNode,
     routeMap: Map<string, RouteNode>,
-  ): void {
-    const hasChildrenInDirectory = this.hasChildrenInDirectory(
-      layoutKey,
-      routeMap,
-    );
+    pagesDir: string,
+    processedPaths: Set<string>,
+    pathPrefix: string[],
+  ): Promise<void> {
+    // Find all layout files at this level
+    for (const [relativePath, route] of routeMap) {
+      if (processedPaths.has(relativePath)) continue;
 
-    if (hasChildrenInDirectory) {
-      layouts.set(layoutKey, route);
-    } else {
-      if (!pages.has("")) pages.set("", []);
-      pages.get("")!.push(route);
+      const segments = this.getPathSegments(relativePath);
+
+      // Check if this file is at the current level
+      if (segments.length === pathPrefix.length + 1) {
+        const fileName = segments[segments.length - 1];
+        const currentPath = [...pathPrefix, fileName];
+
+        // Check if there's a corresponding directory
+        const hasCorrespondingDir = await this.hasCorrespondingDirectory(
+          currentPath.join("/"),
+          pagesDir,
+        );
+
+        if (hasCorrespondingDir) {
+          // This is a layout file
+          const layoutRoute = { ...route };
+          const children: RouteNode[] = [];
+
+          // Find direct children (non-layout files in the corresponding directory)
+          for (const [childPath, childRoute] of routeMap) {
+            const childSegments = this.getPathSegments(childPath);
+
+            if (
+              childSegments.length === pathPrefix.length + 2 &&
+              this.arraysEqual(childSegments.slice(0, -1), currentPath)
+            ) {
+              // Check if this child is also a layout
+              const childHasCorrespondingDir =
+                await this.hasCorrespondingDirectory(
+                  childSegments.join("/"),
+                  pagesDir,
+                );
+
+              if (!childHasCorrespondingDir) {
+                // This is a direct child page (not a layout)
+                const adjustedChild = { ...childRoute };
+                const childName = childSegments[childSegments.length - 1];
+
+                if (childName === "index") {
+                  adjustedChild.path = "/index";
+                  adjustedChild.name = `${currentPath.join("-")}-index`;
+                } else {
+                  adjustedChild.path = `/${childName}`;
+                  adjustedChild.name = `${currentPath.join("-")}-${childName}`;
+                }
+
+                children.push(adjustedChild);
+                processedPaths.add(childPath);
+              }
+            }
+          }
+
+          // Recursively process nested layouts first
+          await this.processLayoutLevel(
+            layoutRoute,
+            routeMap,
+            pagesDir,
+            processedPaths,
+            currentPath,
+          );
+
+          // Then set children (includes both direct children and nested layouts)
+          layoutRoute.children = [...children, ...layoutRoute.children];
+          parentNode.children.push(layoutRoute);
+          processedPaths.add(relativePath);
+        } else if (pathPrefix.length === 0) {
+          // Top-level regular file (not a layout)
+          parentNode.children.push(route);
+          processedPaths.add(relativePath);
+        }
+      }
     }
   }
 
-  private handleNestedFile(
-    pathSegments: string[],
-    route: RouteNode,
-    pages: Map<string, RouteNode[]>,
-  ): void {
-    const parentKey = pathSegments[0];
-    if (!pages.has(parentKey)) pages.set(parentKey, []);
-
-    // Create child route with relative path
-    const childRoute = { ...route };
-    const childSegments = pathSegments.slice(1);
-    childRoute.path = this.convertToUrlPath(childSegments);
-    childRoute.name = this.generateRouteName(childSegments);
-
-    pages.get(parentKey)!.push(childRoute);
+  private arraysEqual(arr1: string[], arr2: string[]): boolean {
+    return (
+      arr1.length === arr2.length && arr1.every((val, i) => val === arr2[i])
+    );
   }
 
-  private hasChildrenInDirectory(
-    layoutKey: string,
-    routeMap: Map<string, RouteNode>,
-  ): boolean {
-    return Array.from(routeMap.keys()).some((path) => {
-      const segments = this.getPathSegments(path);
-      return segments.length > 1 && segments[0] === layoutKey;
-    });
-  }
-
-  private buildFinalTree(
-    root: RouteNode,
-    layouts: Map<string, RouteNode>,
-    pages: Map<string, RouteNode[]>,
-  ): void {
-    // Add regular pages
-    const regularPages = pages.get("") || [];
-    root.children.push(...regularPages);
-
-    // Add layouts with their children
-    for (const [layoutKey, layoutRoute] of layouts) {
-      const childPages = pages.get(layoutKey) || [];
-      layoutRoute.children = childPages;
-      root.children.push(layoutRoute);
+  private async hasCorrespondingDirectory(
+    fileName: string,
+    pagesDir: string,
+  ): Promise<boolean> {
+    const dirPath = join(pagesDir, fileName);
+    try {
+      const stats = await stat(dirPath);
+      return stats.isDirectory();
+    } catch {
+      return false;
     }
   }
 
@@ -192,7 +228,7 @@ export class RouteScanner {
 
     const pathSegments = this.getPathSegments(relativePath);
     const urlPath = this.convertToUrlPath(pathSegments);
-    const params = this.extractParams(pathSegments);
+    const params = this.extractParamsFromSegments(pathSegments);
     const name = this.generateRouteName(pathSegments);
 
     if (!name) return null;
@@ -210,6 +246,22 @@ export class RouteScanner {
     };
   }
 
+  private isValidFileName(fileName: string): boolean {
+    // Remove extension for checking
+    const nameWithoutExt = fileName.replace(/\.[^.]+$/, "");
+
+    // Allow: a-z, A-Z, 0-9, _, -, [, ], (, ), . (for catch-all routes like [...rest])
+    // Reject files with spaces, @, $, and other special characters
+    const validPattern = /^[a-zA-Z0-9_\-\[\]().]+$/;
+
+    return validPattern.test(nameWithoutExt);
+  }
+
+  private getPathSegments(relativePath: string): string[] {
+    const pathWithoutExt = relativePath.replace(/\.[^.]+$/, "");
+    return pathWithoutExt.split("/").filter(Boolean);
+  }
+
   private convertToUrlPath(segments: string[]): string {
     const pathParts = segments
       .filter((segment) => segment && segment !== "index")
@@ -221,18 +273,29 @@ export class RouteScanner {
   }
 
   private isGroupSegment(segment: string): boolean {
-    return segment.startsWith("(") && segment.endsWith(")");
+    return (
+      segment.startsWith("(") &&
+      segment.endsWith(")") &&
+      /^\([a-zA-Z0-9_\-]+\)$/.test(segment)
+    );
   }
 
   private convertSegmentToUrlPart(segment: string): string {
     if (segment.startsWith("[") && segment.endsWith("]")) {
       const paramName = segment.slice(1, -1);
-      return paramName.startsWith("...") ? "*" : `:${paramName}`;
+
+      if (paramName.startsWith("...")) {
+        // Catch-all route
+        return "*";
+      } else {
+        // Dynamic route
+        return `:${paramName}`;
+      }
     }
     return segment;
   }
 
-  private extractParams(segments: string[]): string[] {
+  private extractParamsFromSegments(segments: string[]): string[] {
     return segments
       .filter((segment) => segment.startsWith("[") && segment.endsWith("]"))
       .map((segment) => {
@@ -242,20 +305,22 @@ export class RouteScanner {
   }
 
   private generateRouteName(segments: string[]): string {
-    if (!segments?.length) return "home";
+    if (!segments?.length) return "index";
 
     const nameParts = segments
       .filter((segment) => segment && segment !== "index")
       .filter((segment) => !this.isGroupSegment(segment))
       .map((segment) => this.extractNameFromSegment(segment));
 
-    return nameParts.length > 0 ? nameParts.join("-") : "home";
+    return nameParts.length > 0 ? nameParts.join("-") : "index";
   }
 
   private extractNameFromSegment(segment: string): string {
     if (segment.startsWith("[") && segment.endsWith("]")) {
       const paramName = segment.slice(1, -1);
-      return paramName.startsWith("...") ? paramName.slice(3) : paramName;
+      return paramName.startsWith("...")
+        ? `catch-${paramName.slice(3)}`
+        : paramName;
     }
     return segment;
   }

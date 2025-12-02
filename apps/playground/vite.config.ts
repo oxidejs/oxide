@@ -26,9 +26,9 @@ export default defineConfig({
     ssr: { build: { rollupOptions: { input: "./src/server.ts" } } },
   },
   plugins: [
+    oxide(),
     tailwindcss(),
     svelte({ compilerOptions: { experimental: { async: true } } }),
     nitro(),
-    oxide(),
   ],
 });

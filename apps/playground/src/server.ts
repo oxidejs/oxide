@@ -35,7 +35,6 @@ export default {
     if (orpcResult.matched) {
       return orpcResult.response;
     }
-    console.log(">>>REQ", request);
     const authResult = await auth.handler(request);
     if (authResult.ok) {
       return authResult;

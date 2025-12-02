@@ -26,7 +26,8 @@
     "dist"
   ],
   "scripts": {
-    "build": "bunup"
+    "build": "bunup",
+    "test": "bun test"
   },
   "devDependencies": {
     "@types/bun": "latest",

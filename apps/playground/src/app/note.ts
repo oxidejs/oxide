@@ -7,10 +7,11 @@ export const router = {
     .input(type<{ name: string; content: string }>())
     .handler(async ({ input, context, errors }) => {
       if (!context.user) return errors.UNAUTHORIZED();
-      const [newNote] = await db.insert(note).values({
+      const result = await db.insert(note).values({
         name: input.name,
         content: input.content,
         userId: context.user?.id,
       });
+      return result;
     }),
 };
