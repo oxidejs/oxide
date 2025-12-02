@@ -278,7 +278,7 @@ describe("RouteGenerator", () => {
     const result = generator.generate(routes);
 
     expect(result.moduleCode).toContain(
-      "export { useRouter, useRoute, href, setRouterContext } from './shared/router-utils.js';",
+      "export { useRouter, useRoute, href, setRouterContext } from '@oxidejs/framework/client';",
     );
   });
 

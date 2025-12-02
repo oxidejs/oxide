@@ -4,6 +4,7 @@ node_modules
 local.db
 
 .oxide
+.output
 
 # output
 out

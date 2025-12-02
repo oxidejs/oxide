@@ -43,7 +43,7 @@ export default routes;`;
 
   private generateHelperFunctions(): string {
     return `// Router utility functions re-exported from shared module
-export { useRouter, useRoute, href, setRouterContext } from './shared/router-utils.js';
+export { useRouter, useRoute, href, setRouterContext } from '@oxidejs/framework/client';
 
 `;
   }
