@@ -277,10 +277,8 @@ describe("RouteGenerator", () => {
     const routes = tree.children?.filter((route) => route.hasComponent) || [];
     const result = generator.generate(routes);
 
-    expect(result.moduleCode).toContain("export function useRouter() {");
-    expect(result.moduleCode).toContain("export function useRoute() {");
     expect(result.moduleCode).toContain(
-      "export function href(strings, ...values) {",
+      "export { useRouter, useRoute, href, setRouterContext } from './shared/router-utils.js';",
     );
   });
 

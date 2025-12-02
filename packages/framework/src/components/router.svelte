@@ -142,6 +142,11 @@
     if (routeSegments.includes('*')) {
       const catchAllIndex = routeSegments.findIndex(seg => seg === '*');
 
+      // Guard against invalid catch-all index
+      if (catchAllIndex === -1) {
+        return { matches: false, params: {} };
+      }
+
       let matches = true;
       for (let i = 0; i < catchAllIndex; i++) {
         if (i >= pathSegments.length) {
@@ -162,9 +167,8 @@
       }
 
       if (matches) {
-        const catchAllParam = route.params?.find((p: string) =>
-          p.startsWith('catch-') || route.params.indexOf(p) === route.params.length - 1
-        ) || 'catchAll';
+        // Look for explicit catch- prefixed params, fallback to 'catchAll'
+        const catchAllParam = route.params?.find((p: string) => p.startsWith('catch-')) || 'catchAll';
 
         const remainingSegments = pathSegments.slice(catchAllIndex);
         const paramName = catchAllParam.startsWith('catch-')

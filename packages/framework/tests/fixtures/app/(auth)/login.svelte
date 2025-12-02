@@ -32,7 +32,7 @@
     <div class="error">{error}</div>
   {/if}
 
-  <form onsubmit={handleSubmit}>
+  <form onsubmit|preventDefault={handleSubmit}>
     <div>
       <label for="email">Email</label>
       <input

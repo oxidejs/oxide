@@ -24,11 +24,14 @@ export class RouteGenerator {
   }
 
   private generateModule(routes: RouteNode[]): string {
-    const imports = this.generateSyncImports(routes);
-    const routeEntries = this.generateRouteEntries(routes, "async");
+    const importMode = this.context.options.importMode || "async";
+    const imports =
+      importMode === "sync" ? this.generateSyncImports(routes) : "";
+    const routeEntries = this.generateRouteEntries(routes, importMode);
     const helperFunctions = this.generateHelperFunctions();
+    const utilityFunctions = this.generateUtilityFunctions();
 
-    return `${imports}${helperFunctions}
+    return `${imports}${helperFunctions}${utilityFunctions}
 
 // Routes
 export const routes = [
@@ -39,89 +42,77 @@ export default routes;`;
   }
 
   private generateHelperFunctions(): string {
-    return `// Router utility functions
-import { getContext, setContext } from 'svelte';
+    return `// Router utility functions re-exported from shared module
+export { useRouter, useRoute, href, setRouterContext } from './shared/router-utils.js';
 
-// Declare window for SSR compatibility
-const window = typeof globalThis !== 'undefined' && 'window' in globalThis ? globalThis.window : undefined;
-
-// Single shared Symbol instance
-const ROUTER_CONTEXT_KEY = Symbol('router');
-
-export function useRouter() {
-  const context = getContext(ROUTER_CONTEXT_KEY);
-
-  if (!context) {
-    throw new Error('useRouter() can only be called within a Router component');
+`;
   }
 
-  return {
-    push(path) {
-      context.navigate(path);
-    },
-    replace(path) {
-      context.navigate(path, { replace: true });
-    },
-    back() {
-      if (window && window.history) {
-        window.history.back();
-      }
-    },
-    forward() {
-      if (window && window.history) {
-        window.history.forward();
-      }
+  private generateUtilityFunctions(): string {
+    return `// Helper functions
+function flattenRoutes(routes) {
+  const flattened = [];
+
+  function flatten(route) {
+    flattened.push(route);
+    if (route.children) {
+      route.children.forEach(flatten);
     }
-  };
-}
-
-export function useRoute() {
-  const context = getContext(ROUTER_CONTEXT_KEY);
-
-  if (!context) {
-    throw new Error('useRoute() can only be called within a Router component');
   }
 
-  const location = context.location();
-  const params = context.params();
-  const query = new URLSearchParams(location.search);
-
-  return {
-    location,
-    params,
-    query
-  };
+  routes.forEach(flatten);
+  return flattened;
 }
 
-export function href(strings, ...values) {
-  let result = strings[0] ?? '';
+export function findRouteByName(name) {
+  const flattened = flattenRoutes(routes);
+  return flattened.find(route => route.name === name);
+}
 
-  for (let i = 0; i < values.length; i++) {
-    const value = values[i];
+export function generatePath(name, params = {}) {
+  const route = findRouteByName(name);
+  if (!route) return null;
 
-    if (value instanceof URLSearchParams) {
-      result += value.toString();
-    } else if (Array.isArray(value)) {
-      result += value.join('/');
-    } else {
-      result += encodeURIComponent(String(value));
+  let path = route.path;
+  Object.entries(params).forEach(([key, value]) => {
+    path = path.replace(new RegExp(\`:\${key}\`, 'g'), encodeURIComponent(String(value)));
+  });
+
+  return path;
+}
+
+export function matchRoute(pathname) {
+  const flattened = flattenRoutes(routes);
+  return flattened.find(route => {
+    const routePath = route.path.replace(/:[^/]+/g, '[^/]+');
+    const regex = new RegExp(\`^\${routePath}$\`);
+    return regex.test(pathname);
+  });
+}
+
+export function getRouteParams(pathname, route) {
+  const params = {};
+  const pathParts = pathname.split('/').filter(Boolean);
+  const routeParts = route.path.split('/').filter(Boolean);
+
+  routeParts.forEach((part, index) => {
+    if (part.startsWith(':')) {
+      const paramName = part.slice(1);
+      params[paramName] = pathParts[index];
     }
+  });
 
-    result += strings[i + 1] ?? '';
-  }
-
-  return result;
+  return params;
 }
 
-export function setRouterContext(context) {
-  setContext(ROUTER_CONTEXT_KEY, context);
-}`;
+`;
   }
 
   private generateSyncImports(routes: RouteNode[]): string {
     const imports: string[] = [];
+    const flatRoutes = this.flattenRoutesForImports(routes);
 
-    routes.forEach((route, index) => {
+    flatRoutes.forEach((route, index) => {
       if (route.hasComponent) {
         imports.push(
           `import Component_${index} from "${route.componentImport}";`,
@@ -140,17 +131,14 @@ export function setRouterContext(context) {
     const flatRoutes = this.flattenRoutesForImports(routes);
 
     const processRoute = (route: RouteNode, depth = 0): string => {
-      const childEntries = (route.children || [])
-        .filter((child) => child.hasComponent)
-        .map((child) => processRoute(child, depth + 1));
-
-      if (!route.hasComponent && childEntries.length === 0) {
+      if (!route.hasComponent) {
         return "";
       }
 
       const routeIndex = flatRoutes.findIndex(
         (r) => r.componentImport === route.componentImport,
       );
+
       const component =
         importMode === "sync"
           ? `Component_${routeIndex}`
@@ -164,11 +152,11 @@ export function setRouterContext(context) {
         `${indent}hasComponent: ${route.hasComponent}`,
       ];
 
-      if (route.params.length > 0) {
+      if (route.params && route.params.length > 0) {
         parts.push(`${indent}params: ${JSON.stringify(route.params)}`);
       }
 
-      if (Object.keys(route.meta).length > 0) {
+      if (route.meta && Object.keys(route.meta).length > 0) {
         parts.push(`${indent}meta: ${JSON.stringify(route.meta)}`);
       }
 
@@ -179,11 +167,12 @@ export function setRouterContext(context) {
       if (route.children && route.children.length > 0) {
         const childEntries = route.children
           .filter((child) => child.hasComponent)
-          .map((child) => processRoute(child, depth + 1));
+          .map((child) => processRoute(child, depth + 1))
+          .filter((entry) => entry);
 
         if (childEntries.length > 0) {
           parts.push(
-            `${indent}children: [\n${childEntries.join(",\n")}\n${"  ".repeat(depth)}]`,
+            `${indent}children: [\n${childEntries.join(",\n")}\n${"  ".repeat(depth + 1)}]`,
           );
         }
       }
@@ -194,7 +183,7 @@ export function setRouterContext(context) {
     routes.forEach((route) => {
       const entry = processRoute(route);
       if (entry) {
-        entries.push(`  ${entry}`);
+        entries.push(`${entry}`);
       }
     });
 
@@ -220,8 +209,11 @@ export function setRouterContext(context) {
   private generateTypes(routes: RouteNode[]): string {
     const routeNames = this.extractRouteNames(routes);
     const paramTypes = this.generateParamTypes(routes);
+    const moduleDeclaration = this.generateModuleDeclaration(routes);
 
-    return `// Auto-generated route types
+    return `${moduleDeclaration}
+
+// Auto-generated route types
 export type RouteNames = ${routeNames.length > 0 ? routeNames.map((name) => `"${name}"`).join(" | ") : "never"};
 
 ${paramTypes}
@@ -255,6 +247,64 @@ export interface RouterContext {
   location: () => Location;
   params: () => RouteParams;
 }`;
+  }
+
+  private generateModuleDeclaration(routes: RouteNode[]): string {
+    const routeNames = this.extractRouteNames(routes);
+    const paramInterfaces = this.generateParamInterfaces(routes);
+
+    return `declare module "$oxide" {
+  export interface RouteRecord {
+    name: string;
+    path: string;
+    component: any;
+    hasComponent: boolean;
+    params?: string[];
+    meta?: Record<string, any>;
+    alias?: string[];
+    children?: RouteRecord[];
+  }
+
+  export type RouteNames = ${routeNames.length > 0 ? routeNames.map((name) => `"${name}"`).join(" | ") : "never"};
+
+  export interface RouteParams {
+${paramInterfaces}
+  }
+
+  export function useRouter(): Router;
+  export function useRoute(): Route;
+  export function href(strings: TemplateStringsArray, ...values: any[]): string;
+  export function findRouteByName(name: string): RouteRecord | undefined;
+  export function generatePath(name: string, params?: Record<string, any>): string | null;
+  export function matchRoute(pathname: string): RouteRecord | undefined;
+  export function getRouteParams(pathname: string, route: RouteRecord): Record<string, string>;
+
+  export const routes: RouteRecord[];
+  export default routes;
+}`;
+  }
+
+  private generateParamInterfaces(routes: RouteNode[]): string {
+    const interfaces: string[] = [];
+
+    const extractParamsFromRoute = (route: RouteNode) => {
+      if (route.name) {
+        if (route.params && route.params.length > 0) {
+          const paramProps = route.params
+            .map((param) => `  ${param}: string;`)
+            .join("\n");
+          interfaces.push(`    "${route.name}": {\n${paramProps}\n  }`);
+        } else {
+          interfaces.push(`    "${route.name}": Record<string, never>`);
+        }
+      }
+      if (route.children) {
+        route.children.forEach(extractParamsFromRoute);
+      }
+    };
+
+    routes.forEach(extractParamsFromRoute);
+    return interfaces.join(";\n");
   }
 
   private extractRouteNames(routes: RouteNode[]): string[] {
