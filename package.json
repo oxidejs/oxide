@@ -1,0 +1,24 @@
+{
+  "name": "oxide",
+  "private": true,
+  "author": "Ryuz <ryuzer@proton.me>",
+  "workspaces": [
+    "apps/**",
+    "packages/**",
+    "templates/**"
+  ],
+  "type": "module",
+  "scripts": {
+    "lint": "oxlint",
+    "lint:fix": "oxlint --fix",
+    "fmt": "oxfmt"
+  },
+  "devDependencies": {
+    "@types/bun": "latest",
+    "oxfmt": "^0.27.0",
+    "oxlint": "^1.42.0"
+  },
+  "peerDependencies": {
+    "typescript": "^5"
+  }
+}

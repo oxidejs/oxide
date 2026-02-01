@@ -1,0 +1,11 @@
+{
+  "extends": ["nitro/tsconfig", "@tsconfig/svelte/tsconfig.json"],
+  "compilerOptions": {
+    "baseUrl": ".",
+    "paths": {
+      "$lib/*": ["src/lib/*"],
+      "$assets/*": ["src/assets/*"]
+    }
+  },
+  "include": ["src"]
+}

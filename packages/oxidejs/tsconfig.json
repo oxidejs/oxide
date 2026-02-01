@@ -1,0 +1,6 @@
+{
+  "extends": ["nitro/tsconfig", "@tsconfig/bun/tsconfig.json"],
+  "compilerOptions": {
+    "types": ["vite/client"]
+  }
+}
