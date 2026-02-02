@@ -11,5 +11,10 @@
         <h2 class="text-lg font-semibold">Welcome to Oxide</h2>
         <p>Times clicked: {timesClicked}</p>
         <button class="btn btn-lg" onclick={increase}>Click me</button>
+
+        <div class="flex gap-4 mt-4">
+            <a href="/nested/ok" class="btn">Go to Nested Route</a>
+            <a href="/" class="btn">Home</a>
+        </div>
     </div>
 </div>

@@ -8,15 +8,29 @@
     "directory": "packages/framework"
   },
   "files": [
-    "dist"
+    "dist",
+    "virtual.d.ts"
   ],
   "type": "module",
   "module": "src/index.ts",
+  "typesVersions": {
+    "*": {
+      "virtual": [
+        "virtual.d.ts"
+      ]
+    }
+  },
   "exports": {
     ".": {
       "types": "./dist/index.d.mts",
       "import": "./dist/index.mjs"
-    }
+    },
+    "./src/LayoutRenderer.svelte": "./src/LayoutRenderer.svelte",
+    "./client": {
+      "types": "./dist/client.d.mts",
+      "import": "./dist/client.mjs"
+    },
+    "./virtual": "./virtual.d.ts"
   },
   "scripts": {
     "build": "tsdown"

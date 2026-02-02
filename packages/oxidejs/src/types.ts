@@ -13,3 +13,11 @@ export type RouteWithLayouts = {
   route: Route;
   layouts: Layout[];
 };
+
+export interface RouteManifest {
+  routes?: Route[];
+  layouts?: Layout[];
+  importRoute?(handler: string): Promise<{ default: any }>;
+  importRouteAssets?(handler: string): Promise<any>;
+  LayoutRenderer?: any;
+}
