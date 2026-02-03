@@ -3,7 +3,7 @@ import { nitro } from "nitro/vite";
 import { svelte } from "@sveltejs/vite-plugin-svelte";
 import tailwindcss from "@tailwindcss/vite";
 import path from "node:path";
-import { oxideNitroPlugin } from "oxidejs";
+import { withOxide } from "oxidejs";
 
 // https://vite.dev/config/
 export default defineConfig({
@@ -23,13 +23,5 @@ export default defineConfig({
       },
     },
   },
-  nitro: {
-    noExternals: true,
-    serverDir: "src",
-    renderer: {
-      handler: "src/renderer.ts",
-    },
-    errorHandler: "src/error.ts",
-    ...oxideNitroPlugin({ routesDir: path.join(process.cwd(), "src/routes") }),
-  },
+  nitro: withOxide({ routesDir: path.join(process.cwd(), "src/routes") }),
 });

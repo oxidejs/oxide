@@ -288,3 +288,4 @@ export class OxideHandler {
 export type { RouteWithLayouts, RouteManifest } from "./types.js";
 export { oxideNitroPlugin } from "./nitro-plugin.js";
 export { initializeOxideRouter } from "./client.js";
+export { withOxide } from "./with-oxide";

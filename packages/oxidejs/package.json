@@ -9,7 +9,8 @@
   },
   "files": [
     "dist",
-    "virtual.d.ts"
+    "virtual.d.ts",
+    "app.tsconfig.json"
   ],
   "type": "module",
   "module": "src/index.ts",
@@ -30,7 +31,8 @@
       "types": "./dist/client.d.mts",
       "import": "./dist/client.mjs"
     },
-    "./virtual": "./virtual.d.ts"
+    "./virtual.d.ts": "./virtual.d.ts",
+    "./app.tsconfig.json": "./app.tsconfig.json"
   },
   "scripts": {
     "build": "tsdown"

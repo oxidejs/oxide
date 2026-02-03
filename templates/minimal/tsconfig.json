@@ -1,5 +1,5 @@
 {
-  "extends": ["nitro/tsconfig", "@tsconfig/svelte/tsconfig.json"],
+  "extends": "oxidejs/app.tsconfig.json",
   "compilerOptions": {
     "baseUrl": ".",
     "paths": {

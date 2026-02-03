@@ -1,6 +1,6 @@
 {
   "extends": "nitro/tsconfig",
   "compilerOptions": {
-    "types": ["vite/client"]
+    "types": ["vite/client", "oxidejs/virtual.d.ts"]
   }
 }
