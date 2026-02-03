@@ -18,7 +18,7 @@ export default defineConfig({
     client: {
       build: {
         rollupOptions: {
-          input: "src/client.ts",
+          input: ".oxide/client.js",
         },
       },
     },
@@ -29,6 +29,7 @@ export default defineConfig({
     renderer: {
       handler: "src/renderer.ts",
     },
+    errorHandler: "src/error.ts",
     ...oxideNitroPlugin({ routesDir: path.join(process.cwd(), "src/routes") }),
   },
 });

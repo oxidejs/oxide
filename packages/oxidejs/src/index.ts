@@ -201,7 +201,7 @@ export class OxideHandler {
     const viteClient = this.isDev ? '<script type="module" src="/@vite/client"></script>' : "";
     const cssImport = this.isDev ? "" : this.getCssLinks();
     const clientScript = this.isDev
-      ? '<script type="module" src="/src/client.ts"></script>'
+      ? '<script type="module" src="/.oxide/client.js"></script>'
       : this.getClientScript();
 
     return dedent`<!doctype html>
@@ -241,10 +241,10 @@ export class OxideHandler {
 
   private getClientScript(): string {
     if (this.isDev) {
-      return '<script type="module" src="/src/client.ts"></script>';
+      return '<script type="module" src="/.oxide/client.js"></script>';
     }
 
-    // In production, find the hashed client asset
+    // In production, find the hashed client asset (generated from .oxide/client.js)
     try {
       const publicDir = path.join(process.cwd(), "public/assets");
       if (existsSync(publicDir)) {

@@ -1,4 +1,4 @@
-import type { H3Event } from "nitro/h3";
+import { type H3Event, HTTPError } from "nitro/h3";
 import { OxideHandler } from "oxidejs";
 import routesManifest from "#oxide/routes";
 
@@ -9,7 +9,7 @@ async function renderer(event: H3Event) {
   if (matched) {
     return response;
   }
-  return new Response("Not Found", { status: 404 });
+  throw HTTPError.status(404);
 }
 
 export default renderer;

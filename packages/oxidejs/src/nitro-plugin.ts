@@ -7,29 +7,21 @@ interface RouteCompilerOptions {
 
 export function oxideNitroPlugin(options: RouteCompilerOptions = {}) {
   const routesDir = options.routesDir ?? path.join(process.cwd(), "src/routes");
-  const isDev = process.env.NODE_ENV === "development";
 
-  // Generate client routes file immediately
-  generateClientRoutesFile(routesDir, isDev);
+  // Generate files immediately when plugin is loaded
+  generateClientRoutesFile(routesDir);
+  generateClientInitFile(routesDir);
 
   return {
     virtual: {
-      "#oxide/routes": () => generateServerRoutesManifest(routesDir, isDev),
+      "#oxide/routes": () => generateServerRoutesManifest(routesDir),
     },
   };
 }
 
-function generateServerRoutesManifest(routesDir: string, isDev = false): string {
+function generateServerRoutesManifest(routesDir: string): string {
   const routes = discoverRoutes(routesDir);
   const layouts = discoverLayouts(routesDir);
-
-  if (isDev) {
-    console.log("🔨 Generating Oxide routes manifest:");
-    console.log(`  Routes found: ${routes.length}`);
-    routes.forEach((route) => console.log(`    ${route.path} -> ${route.handler}`));
-    console.log(`  Layouts found: ${layouts.length}`);
-    layouts.forEach((layout) => console.log(`    ${layout.handler} (level ${layout.level})`));
-  }
 
   // Generate static imports for server-side SSR
   const routeImports = routes
@@ -87,7 +79,31 @@ export default {
 `;
 }
 
-function generateClientRoutesFile(routesDir: string, isDev = false) {
+function generateClientInitFile(routesDir: string) {
+  const clientCode = `// Auto-generated client initialization
+import { initializeOxideRouter } from "oxidejs/client";
+import routesManifest from "./client-routes.js";
+import "../src/app.css";
+
+// Initialize Oxide router with routes manifest from generated file
+initializeOxideRouter(routesManifest);
+`;
+
+  try {
+    const outputDir = path.join(process.cwd(), ".oxide");
+    const outputFile = path.join(outputDir, "client.js");
+
+    if (!existsSync(outputDir)) {
+      mkdirSync(outputDir, { recursive: true });
+    }
+
+    writeFileSync(outputFile, clientCode);
+  } catch (error) {
+    console.error("❌ Failed to generate client init file:", error);
+  }
+}
+
+function generateClientRoutesFile(routesDir: string) {
   const routes = discoverRoutes(routesDir);
   const layouts = discoverLayouts(routesDir);
 
@@ -155,9 +171,6 @@ export default {
     }
 
     writeFileSync(outputFile, clientCode);
-    if (isDev) {
-      console.log("✅ Generated client routes file:", outputFile);
-    }
   } catch (error) {
     console.error("❌ Failed to generate client routes file:", error);
   }
