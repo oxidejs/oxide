@@ -3,8 +3,7 @@ import { nitro } from "nitro/vite";
 import { svelte } from "@sveltejs/vite-plugin-svelte";
 import tailwindcss from "@tailwindcss/vite";
 import path from "node:path";
-import { withOxide } from "oxidejs";
-
+import { withOxide } from "oxidejs/nitro";
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [svelte(), tailwindcss(), nitro()],
@@ -18,7 +17,7 @@ export default defineConfig({
     client: {
       build: {
         rollupOptions: {
-          input: ".oxide/client.js",
+          input: ".oxide/client.ts",
         },
       },
     },

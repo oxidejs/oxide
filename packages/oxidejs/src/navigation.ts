@@ -1,29 +1,17 @@
-import type { LinkPreloader } from "./preload";
+// Legacy navigation utilities for backwards compatibility
+import { getOxideRouter } from "./client.js";
 
-// Global navigation function and preloader
-let globalNavigate: ((pathname: string) => Promise<void>) | null = null;
-let globalPreloader: LinkPreloader | null = null;
-
-export function setGlobalNavigate(navigate: (pathname: string) => Promise<void>): void {
-  globalNavigate = navigate;
-}
-
-export function setGlobalPreloader(preloader: LinkPreloader): void {
-  globalPreloader = preloader;
-}
-
-// Svelte action for client-side navigation with preloading
+// Legacy link action for backwards compatibility
 export function link(node: HTMLAnchorElement): { destroy: () => void } {
   // Guard against SSR
   if (typeof window === "undefined") {
     return { destroy: () => {} };
   }
 
-  let cleanupPreloader: (() => void) | undefined;
-
   function handleClick(event: MouseEvent): void {
+    const router = getOxideRouter();
     if (
-      globalNavigate &&
+      router &&
       node.href &&
       node.origin === window.location.origin &&
       !node.target &&
@@ -34,23 +22,20 @@ export function link(node: HTMLAnchorElement): { destroy: () => void } {
       event.button === 0
     ) {
       event.preventDefault();
-      const pathname = new URL(node.href).pathname;
-      history.pushState({}, "", node.href);
-      globalNavigate(pathname);
+      const pathname =
+        new URL(node.href).pathname + new URL(node.href).search + new URL(node.href).hash;
+      router.navigateTo(pathname);
     }
   }
 
   node.addEventListener("click", handleClick);
 
-  // Set up preloading if available
-  if (globalPreloader) {
-    cleanupPreloader = globalPreloader.observeLink(node);
-  }
-
   return {
     destroy(): void {
       node.removeEventListener("click", handleClick);
-      cleanupPreloader?.();
     },
   };
 }
+
+// Re-export the main navigation functions from actions
+export { link as linkAction, links, navigate, preloadRoute } from "./actions.js";
