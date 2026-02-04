@@ -23,5 +23,5 @@ export default defineConfig({
       },
     },
   },
-  nitro: withOxide({ routesDir: path.join(process.cwd(), "src/routes") }),
+  nitro: withOxide(),
 });

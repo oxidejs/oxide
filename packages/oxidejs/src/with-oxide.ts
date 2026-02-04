@@ -6,7 +6,7 @@ interface WithOxideOptions {
 }
 
 export function withOxide(options: WithOxideOptions = {}) {
-  const routesDir = options.routesDir || path.join(process.cwd(), "src/routes");
+  const routesDir = options.routesDir ?? path.join(process.cwd(), "src/routes");
 
   return {
     noExternals: true,
