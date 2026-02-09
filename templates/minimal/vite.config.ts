@@ -13,9 +13,18 @@ export default defineConfig({
       $assets: path.resolve("./src/assets"),
     },
   },
+  server: {
+    fs: {
+      allow: [".oxide", ".."],
+    },
+    watch: {
+      ignored: ["!**/node_modules/**", "!**/.oxide/**"],
+    },
+  },
   environments: {
     client: {
       build: {
+        manifest: true,
         rollupOptions: {
           input: ".oxide/client.ts",
         },

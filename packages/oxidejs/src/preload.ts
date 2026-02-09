@@ -84,11 +84,9 @@ export class LinkPreloader {
               console.log(`✓ Preloaded: ${pathname}`);
             }
           })
-          .catch((err) => {
-            console.warn(`✗ Failed to preload ${pathname}:`, err);
-          });
+          .catch(() => {});
       } catch (error) {
-        console.warn(`Preload error for ${pathname}:`, error);
+        // Silently fail preload
       }
     };
 

@@ -10,8 +10,9 @@ import type {
   ScrollOptions,
 } from "./types.js";
 import { setGlobalNavigate, setGlobalPreloader } from "./client-actions.js";
-import LayoutRenderer from "../components/LayoutRenderer.svelte";
-import ErrorRenderer from "../components/ErrorRenderer.svelte";
+
+const APP_ELEMENT_ID = "app";
+const CACHE_MAX_AGE_MS = 5 * 60 * 1000;
 
 interface NavigationCache {
   [url: string]: {
@@ -67,7 +68,7 @@ class OxideClientRouter {
       this.setupNavigationListeners();
       await this.mountInitialComponent();
     } catch (error) {
-      console.error("Failed to initialize Oxide router:", error);
+      throw error;
     }
   }
 
@@ -82,7 +83,6 @@ class OxideClientRouter {
 
     // Handle unhandled promise rejections as navigation errors
     window.addEventListener("unhandledrejection", (event) => {
-      console.error("Unhandled navigation error:", event.reason);
       this.handleError(new Error(event.reason || "Navigation error"));
     });
   }
@@ -105,13 +105,7 @@ class OxideClientRouter {
     this.setState({ loading: true, error: undefined });
 
     try {
-      console.log("🔧 Client: Trying to match route:", normalizedPath);
-      console.log(
-        "🔧 Client: Available routes:",
-        this.routes.map((r) => r.path),
-      );
       const match = findRoute(this.router, "GET", normalizedPath);
-      console.log("🔧 Client: Route match result:", match);
 
       if (!match?.data) {
         throw new Error(`Route not found: ${normalizedPath}`);
@@ -148,10 +142,9 @@ class OxideClientRouter {
       });
     } catch (error: any) {
       if (error.name === "AbortError") {
-        return; // Navigation was cancelled
+        return;
       }
 
-      console.error("Navigation failed:", error);
       this.setState({ loading: false, error });
       this.handleError(error);
     }
@@ -188,9 +181,7 @@ class OxideClientRouter {
     const cached = this.navigationCache[path];
     if (!cached) return null;
 
-    // Cache expires after 5 minutes
-    const maxAge = 5 * 60 * 1000;
-    if (Date.now() - cached.timestamp > maxAge) {
+    if (Date.now() - cached.timestamp > CACHE_MAX_AGE_MS) {
       delete this.navigationCache[path];
       return null;
     }
@@ -205,13 +196,12 @@ class OxideClientRouter {
     };
   }
 
-  private async mountInitialComponent() {
+  private async mountInitialComponent(): Promise<void> {
     const path = window.location.pathname + window.location.search + window.location.hash;
     const normalizedPath = this.normalizePath(path);
     const match = findRoute(this.router, "GET", normalizedPath);
 
     if (!match?.data) {
-      console.warn("Initial route not found:", normalizedPath);
       return;
     }
 
@@ -237,7 +227,6 @@ class OxideClientRouter {
 
       this.mounted = true;
     } catch (error) {
-      console.error("Failed to mount initial component:", error);
       this.handleError(error as Error);
     }
   }
@@ -247,8 +236,8 @@ class OxideClientRouter {
     params: Record<string, string>,
     payload: NavigationPayload,
     isInitial = false,
-  ) {
-    const appElement = document.getElementById("app");
+  ): Promise<void> {
+    const appElement = document.getElementById(APP_ELEMENT_ID);
     if (!appElement) {
       throw new Error("App element not found");
     }
@@ -272,22 +261,20 @@ class OxideClientRouter {
             const layoutModule = await this.routeManifest?.importRoute?.(layout.handler);
             return layoutModule?.default;
           } catch (error) {
-            console.warn(`Failed to load layout: ${layout.handler}`, error);
             return null;
           }
         }),
       );
 
-      const props = {
-        params,
-        data: payload.data || {},
-      };
-
       let component;
 
-      if (isInitial && this.mounted === false) {
+      if (isInitial && !this.mounted) {
         // First load - hydrate the server-rendered content
         if (layoutComponents.some((l) => l)) {
+          const LayoutRenderer = this.routeManifest?.LayoutRenderer;
+          if (!LayoutRenderer) {
+            throw new Error("LayoutRenderer not found in route manifest");
+          }
           component = hydrate(LayoutRenderer, {
             target: appElement,
             props: {
@@ -309,6 +296,10 @@ class OxideClientRouter {
         }
 
         if (layoutComponents.some((l) => l)) {
+          const LayoutRenderer = this.routeManifest?.LayoutRenderer;
+          if (!LayoutRenderer) {
+            throw new Error("LayoutRenderer not found in route manifest");
+          }
           component = mount(LayoutRenderer, {
             target: appElement,
             props: {
@@ -328,13 +319,12 @@ class OxideClientRouter {
       // Store component reference
       (appElement as any)._oxideComponent = component;
     } catch (error) {
-      console.error("Component rendering error:", error);
       throw error;
     }
   }
 
-  private handleError(error: Error) {
-    const appElement = document.getElementById("app");
+  private handleError(error: Error): void {
+    const appElement = document.getElementById(APP_ELEMENT_ID);
     if (!appElement) return;
 
     // Find the nearest error boundary
@@ -378,8 +368,8 @@ class OxideClientRouter {
     }
   }
 
-  private renderFallbackError(error: Error) {
-    const appElement = document.getElementById("app");
+  private renderFallbackError(error: Error): void {
+    const appElement = document.getElementById(APP_ELEMENT_ID);
     if (!appElement) return;
 
     appElement.innerHTML = `
@@ -523,7 +513,7 @@ class OxideClientRouter {
       // Wait for all preloads
       await Promise.all([componentPromise, ...layoutPromises, payloadPromise].filter(Boolean));
     } catch (error) {
-      console.warn("Failed to preload route:", normalizedPath, error);
+      // Silently fail preload
     }
   }
 
@@ -562,13 +552,12 @@ class OxideClientRouter {
 }
 
 // Global router instance
-let oxideRouter: OxideClientRouter;
+let oxideRouter: OxideClientRouter | undefined;
 
 export async function initializeOxideRouter(
   routesManifest?: RouteManifest,
 ): Promise<OxideClientRouter> {
   if (oxideRouter) {
-    console.warn("Oxide router already initialized");
     return oxideRouter;
   }
 

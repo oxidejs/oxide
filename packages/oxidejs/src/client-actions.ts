@@ -72,7 +72,7 @@ export function link(
 
       globalNavigate(pathname, navigationOptions);
     } catch (error) {
-      console.error("Navigation error:", error);
+      // Silently fail navigation
     }
   }
 
@@ -97,9 +97,7 @@ export function link(
 
       const preload = () => {
         if (globalPreloader) {
-          globalPreloader(pathname).catch((err) => {
-            console.warn("Preload failed for", pathname, err);
-          });
+          globalPreloader(pathname).catch(() => {});
         }
       };
 
@@ -341,7 +339,6 @@ export function links(
 // Export individual navigation functions for programmatic use
 export async function navigate(href: string, options: NavigationOptions = {}): Promise<void> {
   if (!globalNavigate) {
-    console.warn("Oxide router not initialized");
     return;
   }
 
@@ -350,7 +347,6 @@ export async function navigate(href: string, options: NavigationOptions = {}): P
 
 export async function preloadRoute(href: string): Promise<void> {
   if (!globalPreloader) {
-    console.warn("Oxide preloader not available");
     return;
   }
 

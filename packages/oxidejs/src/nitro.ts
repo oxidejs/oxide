@@ -6,6 +6,10 @@ import { readdirSync, existsSync } from "node:fs";
 import path from "node:path";
 import type { Route, Layout, ErrorBoundary, NavigationPayload, RouteManifest } from "./types.js";
 
+const PAYLOAD_ROUTE_PREFIX = "/__oxide/payload";
+const VITE_CLIENT_SCRIPT = '<script type="module" src="/@vite/client"></script>';
+const DEFAULT_TITLE = "<title>Oxide</title>";
+
 export class OxideHandler {
   private isDev: boolean;
   private routesManifest?: RouteManifest;
@@ -15,7 +19,7 @@ export class OxideHandler {
     routesDir,
     routesManifest,
   }: { routesDir?: string; routesManifest?: RouteManifest } = {}) {
-    this.isDev = !process.cwd().includes(".output") && process.env.NODE_ENV !== "production";
+    this.isDev = this.detectDevMode();
     this.routesManifest = routesManifest;
 
     if (this.routesManifest?.routes) {
@@ -35,24 +39,22 @@ export class OxideHandler {
   async handle(event: H3Event): Promise<{ matched: boolean; response: Response }> {
     const url = new URL(event?.req?.url ?? "/", "http://localhost");
     const pathname = this.normalizePath(url.pathname);
-    const isNavigationPayloadRequest = (event.req.headers as any)["x-oxide-navigation"] === "true";
+    const isNavigationPayloadRequest = this.isNavigationRequest(event);
 
     try {
       if (!this.routesManifest) {
         return this.createErrorResponse("No routes manifest provided", 500);
       }
 
-      if (isNavigationPayloadRequest || pathname.startsWith("/__oxide/payload")) {
-        const actualPath = pathname.startsWith("/__oxide/payload")
-          ? pathname.replace("/__oxide/payload", "") || "/"
-          : pathname;
+      if (isNavigationPayloadRequest || pathname.startsWith(PAYLOAD_ROUTE_PREFIX)) {
+        const actualPath = this.extractPayloadPath(pathname);
         return this.handleNavigationPayload(actualPath);
       }
 
       const match = findRoute(this.router, "GET", pathname);
 
       if (!match?.data) {
-        const catchAllMatch = this.routesManifest.routes.find(
+        const catchAllMatch = this.routesManifest.routes?.find(
           (route) => route.path.includes("*") && this.matchesCatchAll(route.path, pathname),
         );
 
@@ -155,14 +157,17 @@ export class OxideHandler {
       }
 
       let body: string;
+      let head: string = "";
 
       try {
-        body = await this.renderWithLayouts(Component, routeLayouts, params, routeData);
+        const result = await this.renderWithLayouts(Component, routeLayouts, params, routeData);
+        body = result.body;
+        head = result.head;
       } catch (renderError: any) {
         body = await this.renderWithErrorBoundary(renderError, routeErrors, params);
       }
 
-      const response = new Response(this.generateHtml(body, routeData), {
+      const response = new Response(this.generateHtml(body, routeData, head), {
         headers: { "content-type": "text/html; charset=utf-8" },
       });
 
@@ -293,7 +298,7 @@ export class OxideHandler {
     layouts: Layout[],
     params: Record<string, string>,
     data: Record<string, any>,
-  ): Promise<string> {
+  ): Promise<{ body: string; head: string }> {
     const layoutComponents = [];
     for (const layout of layouts) {
       try {
@@ -320,9 +325,10 @@ export class OxideHandler {
           params,
         },
       });
-      return result.body;
+      return { body: result.body, head: result.head || "" };
     } else {
-      return this.renderComponentToString(Component, { params });
+      const result = render(Component, { props: { params } });
+      return { body: result.body, head: result.head || "" };
     }
   }
 
@@ -381,9 +387,20 @@ export class OxideHandler {
     }
   }
 
-  private renderComponentToString(Component: any, props: any): string {
-    const result = render(Component, { props });
-    return result.body;
+
+
+  private detectDevMode(): boolean {
+    return !process.cwd().includes(".output") && process.env.NODE_ENV !== "production";
+  }
+
+  private isNavigationRequest(event: H3Event): boolean {
+    return (event.req.headers as any)["x-oxide-navigation"] === "true";
+  }
+
+  private extractPayloadPath(pathname: string): string {
+    return pathname.startsWith(PAYLOAD_ROUTE_PREFIX)
+      ? pathname.replace(PAYLOAD_ROUTE_PREFIX, "") || "/"
+      : pathname;
   }
 
   private normalizePath(pathname: string): string {
@@ -420,8 +437,8 @@ export class OxideHandler {
     return params;
   }
 
-  private generateHtml(body: string, ssrData?: Record<string, any>): string {
-    const viteClient = this.isDev ? '<script type="module" src="/@vite/client"></script>' : "";
+  private generateHtml(body: string, ssrData?: Record<string, any>, head?: string): string {
+    const viteClient = this.isDev ? VITE_CLIENT_SCRIPT : "";
     const cssImport = this.isDev ? "" : this.getCssLinks();
     const clientScript = this.isDev
       ? '<script type="module" src="/.oxide/client.ts"></script>'
@@ -436,7 +453,7 @@ export class OxideHandler {
         <head>
           <meta charset="UTF-8" />
           <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-          <title>Oxide</title>
+          ${head || DEFAULT_TITLE}
           ${viteClient}
           ${cssImport}
         </head>
@@ -462,6 +479,20 @@ export class OxideHandler {
     }
 
     try {
+      const manifestPath = path.join(process.cwd(), "public/.vite/manifest.json");
+      if (existsSync(manifestPath)) {
+        const manifestContent = require("fs").readFileSync(manifestPath, "utf-8");
+        const manifest = JSON.parse(manifestContent);
+        const clientEntry = manifest[".oxide/client.ts"];
+        if (clientEntry?.file) {
+          return `<script type="module" src="/${clientEntry.file}"></script>`;
+        }
+      }
+    } catch (error) {
+      // Fallback to scanning directory
+    }
+
+    try {
       const publicDir = path.join(process.cwd(), "public/assets");
       if (existsSync(publicDir)) {
         const files = readdirSync(publicDir);
@@ -482,20 +513,41 @@ export class OxideHandler {
       return "";
     }
 
+    const cssFiles: string[] = [];
+
     try {
-      const publicDir = path.join(process.cwd(), "public/assets");
-      if (existsSync(publicDir)) {
-        const files = readdirSync(publicDir);
-        const cssFiles = files.filter((file) => file.endsWith(".css"));
-        return cssFiles
-          .map((file) => `<link rel="stylesheet" href="/assets/${file}">`)
-          .join("\n        ");
+      const manifestPath = path.join(process.cwd(), "public/.vite/manifest.json");
+      if (existsSync(manifestPath)) {
+        const manifestContent = require("fs").readFileSync(manifestPath, "utf-8");
+        const manifest = JSON.parse(manifestContent);
+        const clientEntry = manifest[".oxide/client.ts"];
+        if (clientEntry?.css) {
+          cssFiles.push(...clientEntry.css);
+        }
       }
     } catch (error) {
-      // Fallback
+      // Fallback to scanning directory
     }
 
-    return "";
+    if (cssFiles.length === 0) {
+      try {
+        const publicDir = path.join(process.cwd(), "public/assets");
+        if (existsSync(publicDir)) {
+          const files = readdirSync(publicDir);
+          const foundCssFiles = files.filter((file) => file.endsWith(".css"));
+          cssFiles.push(...foundCssFiles.map(file => `/assets/${file}`));
+        }
+      } catch (error) {
+        // Fallback
+      }
+    }
+
+    return cssFiles
+      .map((file) => {
+        const href = file.startsWith('/') ? file : `/${file}`;
+        return `<link rel="stylesheet" href="${href}">`;
+      })
+      .join("\n        ");
   }
 }
 
