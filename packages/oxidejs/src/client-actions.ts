@@ -1,6 +1,6 @@
 import type { LinkOptions, NavigationOptions } from "./types.js";
+import { shouldRedirectForTrailingSlash, getConfig } from "./config.js";
 
-// Global navigation function - set by the client router
 let globalNavigate: ((pathname: string, options?: NavigationOptions) => Promise<void>) | null =
   null;
 let globalPreloader: ((pathname: string) => Promise<void>) | null = null;
@@ -62,16 +62,23 @@ export function link(
 
     try {
       const url = new URL(node.href);
-      const pathname = url.pathname + url.search + url.hash;
+      const pathname = url.pathname;
+      const fullPath = pathname + url.search + url.hash;
+
+      const config = getConfig();
+      const needsCanonicalRedirect = shouldRedirectForTrailingSlash(
+        pathname,
+        config.trailingSlash || "never",
+      );
 
       const navigationOptions: NavigationOptions = {
-        replaceState: currentOptions.replaceState,
+        replaceState: needsCanonicalRedirect || currentOptions.replaceState,
         noscroll: currentOptions.noscroll,
         keepfocus: currentOptions.keepfocus,
       };
 
-      globalNavigate(pathname, navigationOptions);
-    } catch (error) {
+      globalNavigate(fullPath, navigationOptions);
+    } catch {
       // Silently fail navigation
     }
   }
@@ -85,8 +92,8 @@ export function link(
       return;
     }
 
-    const preloadMode = currentOptions.preload || "hover";
-    if (preloadMode === false) return;
+    const preloadMode = currentOptions.preload;
+    if (preloadMode === false || preloadMode === undefined) return;
 
     try {
       const url = new URL(node.href);

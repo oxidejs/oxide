@@ -29,6 +29,7 @@
     },
     "./components/LayoutRenderer.svelte": "./components/LayoutRenderer.svelte",
     "./components/ErrorRenderer.svelte": "./components/ErrorRenderer.svelte",
+    "./components/OxideProvider.svelte": "./components/OxideProvider.svelte",
     "./client": {
       "types": "./dist/client.d.mts",
       "import": "./dist/client.mjs"

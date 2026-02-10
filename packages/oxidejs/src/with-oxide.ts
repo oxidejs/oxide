@@ -6,10 +6,10 @@ import {
   generateRouteManifestArrays,
   generateImportStatements,
 } from "./route-utils.js";
+import type { OxideConfig } from "./config.js";
+import { setConfig } from "./config.js";
 
-interface WithOxideOptions {
-  routesDir?: string;
-}
+interface WithOxideOptions extends OxideConfig {}
 
 /**
  * Configures Nitro with Oxide framework support.
@@ -24,7 +24,13 @@ interface WithOxideOptions {
  * @returns Nitro configuration object
  */
 export function withOxide(options: WithOxideOptions = {}): NitroConfig {
-  const routesDir = options.routesDir ?? "./src/routes";
+  const routesDir = options.routesDir ?? "src/routes";
+  const trailingSlash = options.trailingSlash ?? "never";
+
+  setConfig({
+    routesDir,
+    trailingSlash,
+  });
 
   /**
    * Generates the .oxide/client.ts entry point for client-side hydration.
@@ -55,9 +61,15 @@ export function withOxide(options: WithOxideOptions = {}): NitroConfig {
     } = generateRouteManifestArrays(routes, layouts, errors, routesDir);
 
     const clientEntry = `import "../src/app.css";
-import { initializeOxideRouter } from "oxidejs/client";
-import LayoutRenderer from "oxidejs/components/LayoutRenderer.svelte";
-import ErrorRenderer from "oxidejs/components/ErrorRenderer.svelte";
+    import { initializeOxideRouter } from "oxidejs/client";
+    import { setConfig } from "oxidejs";
+    import LayoutRenderer from "oxidejs/components/LayoutRenderer.svelte";
+    import ErrorRenderer from "oxidejs/components/ErrorRenderer.svelte";
+
+    setConfig({
+      routesDir: "${routesDir}",
+      trailingSlash: "${trailingSlash}"
+    });
 
 ${routeImports}
 ${layoutImports}

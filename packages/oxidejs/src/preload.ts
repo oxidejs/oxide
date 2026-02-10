@@ -85,7 +85,7 @@ export class LinkPreloader {
             }
           })
           .catch(() => {});
-      } catch (error) {
+      } catch {
         // Silently fail preload
       }
     };

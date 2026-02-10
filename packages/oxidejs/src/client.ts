@@ -8,8 +8,17 @@ import type {
   NavigationPayload,
   NavigationOptions,
   ScrollOptions,
+  OxideUrl,
 } from "./types.js";
 import { setGlobalNavigate, setGlobalPreloader } from "./client-actions.js";
+import { parseRouteParams } from "./shared-utils.js";
+import { parseUrl, createRouteStore, createPayloadStore, type Router } from "./context.js";
+import {
+  getConfig,
+  normalizePathWithTrailingSlash,
+  shouldRedirectForTrailingSlash,
+  getCanonicalUrl,
+} from "./config.js";
 
 const APP_ELEMENT_ID = "app";
 const CACHE_MAX_AGE_MS = 5 * 60 * 1000;
@@ -23,12 +32,13 @@ interface NavigationCache {
 
 interface RouterState {
   currentRoute?: Route;
-  currentParams: Record<string, string>;
+  currentParams: Record<string, string | string[]>;
+  currentUrl: OxideUrl;
   loading: boolean;
   error?: Error;
 }
 
-class OxideClientRouter {
+class OxideClientRouter implements Router {
   private router = createRouter();
   private routes: Route[] = [];
   private layouts: Layout[] = [];
@@ -37,10 +47,28 @@ class OxideClientRouter {
   private navigationCache: NavigationCache = {};
   private state: RouterState = {
     currentParams: {},
+    currentUrl: parseUrl(typeof window !== "undefined" ? window.location.href : "/"),
     loading: false,
   };
   private mounted = false;
   private abortController?: AbortController;
+  private readyPromise: Promise<void>;
+  private resolveReady!: () => void;
+  private routeStore: ReturnType<typeof createRouteStore>;
+  private payloadStore: ReturnType<typeof createPayloadStore>;
+
+  constructor() {
+    this.readyPromise = new Promise((resolve) => {
+      this.resolveReady = resolve;
+    });
+
+    this.routeStore = createRouteStore({
+      params: {},
+      url: this.state.currentUrl,
+    });
+
+    this.payloadStore = createPayloadStore<any>({});
+  }
 
   async initialize(routesManifest?: RouteManifest) {
     try {
@@ -49,7 +77,6 @@ class OxideClientRouter {
       this.layouts = this.routeManifest?.layouts || [];
       this.errors = this.routeManifest?.errors || [];
 
-      // Set up router with proper priority ordering
       const sortedRoutes = [...this.routes].sort((a, b) => {
         if (a.priority !== b.priority) {
           return b.priority - a.priority;
@@ -61,43 +88,82 @@ class OxideClientRouter {
         addRoute(this.router, "GET", route.path, route);
       }
 
-      // Set global navigation functions
-      setGlobalNavigate(this.navigateTo.bind(this));
+      setGlobalNavigate(this.push.bind(this));
       setGlobalPreloader(this.preloadRoute.bind(this));
 
       this.setupNavigationListeners();
       await this.mountInitialComponent();
+      this.resolveReady();
     } catch (error) {
+      this.resolveReady();
       throw error;
     }
   }
 
   private setupNavigationListeners() {
-    window.addEventListener("popstate", (_event) => {
+    window.addEventListener("popstate", () => {
       const url = window.location.pathname + window.location.search + window.location.hash;
-      this.navigateTo(url, {
-        pushState: false,
-        scroll: { behavior: "auto" },
-      } as NavigationOptions);
+      this.navigateTo(url, { pushState: false, scroll: { behavior: "auto" } });
     });
 
-    // Handle unhandled promise rejections as navigation errors
     window.addEventListener("unhandledrejection", (event) => {
       this.handleError(new Error(event.reason || "Navigation error"));
     });
   }
 
-  async navigateTo(path: string, options: NavigationOptions = {}): Promise<void> {
-    // Cancel any ongoing navigation
+  async push(href: string): Promise<void> {
+    return this.navigateTo(href, { pushState: true });
+  }
+
+  async replace(href: string): Promise<void> {
+    return this.navigateTo(href, { replaceState: true });
+  }
+
+  go(delta: number): void {
+    window.history.go(delta);
+  }
+
+  isReady(): Promise<void> {
+    return this.readyPromise;
+  }
+
+  get route() {
+    return this.routeStore.store;
+  }
+
+  get payload() {
+    return this.payloadStore.store;
+  }
+
+  private async navigateTo(path: string, options: NavigationOptions = {}): Promise<void> {
     this.abortController?.abort();
     this.abortController = new AbortController();
 
-    const normalizedPath = this.normalizePath(path);
+    const config = getConfig();
+    const url = new URL(path, window.location.origin);
+    const pathname = url.pathname;
+    const search = url.search;
+    const hash = url.hash;
 
-    // Check if we're already on this path
+    const canonicalPath = normalizePathWithTrailingSlash(pathname, config.trailingSlash || "never");
+    const canonicalUrl = canonicalPath + search + hash;
+    const needsCanonicalRedirect = shouldRedirectForTrailingSlash(
+      pathname,
+      config.trailingSlash || "never",
+    );
+
+    if (needsCanonicalRedirect && !options.replaceState) {
+      window.history.replaceState({ path: canonicalUrl }, "", canonicalUrl);
+      return this.navigateTo(canonicalUrl, { ...options, replaceState: true });
+    }
+
+    const normalizedPath = canonicalPath;
+    const fullPath = normalizedPath + search + hash;
+
     if (
-      window.location.pathname + window.location.search + window.location.hash === normalizedPath &&
-      options.pushState !== false
+      window.location.pathname + window.location.search + window.location.hash === fullPath &&
+      options.pushState !== false &&
+      !options.replaceState
     ) {
       return;
     }
@@ -112,34 +178,41 @@ class OxideClientRouter {
       }
 
       const route = match.data as Route;
-      const params = match.params || {};
+      const params = parseRouteParams(route.path, match);
+      const oxideUrl = parseUrl(fullPath);
 
-      // Try to get cached payload first
-      let payload = this.getCachedPayload(normalizedPath);
+      let payload = this.getCachedPayload(fullPath);
 
       if (!payload) {
-        // Fetch navigation payload from server
-        payload = await this.fetchNavigationPayload(normalizedPath, this.abortController.signal);
-        this.cachePayload(normalizedPath, payload);
+        payload = await this.fetchNavigationPayload(fullPath, this.abortController.signal);
+        this.cachePayload(fullPath, payload);
       }
 
-      // Load and render the route
-      await this.renderRoute(route, params, payload);
+      await this.renderRoute(route, params, oxideUrl, payload);
 
-      // Update browser history
-      if (options.pushState !== false) {
-        window.history.pushState({ path: normalizedPath }, "", normalizedPath);
+      if (options.replaceState) {
+        window.history.replaceState({ path: fullPath }, "", fullPath);
+      } else if (options.pushState !== false) {
+        window.history.pushState({ path: fullPath }, "", fullPath);
       }
 
-      // Handle scroll behavior
       this.handleScrollBehavior(options.scroll);
 
-      // Update state
       this.setState({
         currentRoute: route,
         currentParams: params,
+        currentUrl: oxideUrl,
         loading: false,
       });
+
+      this.routeStore.update({
+        params,
+        url: oxideUrl,
+        matched: route,
+        canonical: canonicalUrl,
+      });
+
+      this.payloadStore.update(payload.data || {});
     } catch (error: any) {
       if (error.name === "AbortError") {
         return;
@@ -170,7 +243,7 @@ class OxideClientRouter {
 
     const payload = await response.json();
     return {
-      url: path,
+      url: parseUrl(path),
       params: payload.params || {},
       data: payload.data || {},
       timestamp: Date.now(),
@@ -198,128 +271,144 @@ class OxideClientRouter {
 
   private async mountInitialComponent(): Promise<void> {
     const path = window.location.pathname + window.location.search + window.location.hash;
-    const normalizedPath = this.normalizePath(path);
-    const match = findRoute(this.router, "GET", normalizedPath);
+    const pathname = window.location.pathname;
+    const config = getConfig();
+
+    const canonicalPath = normalizePathWithTrailingSlash(pathname, config.trailingSlash || "never");
+    const needsCanonicalRedirect = shouldRedirectForTrailingSlash(
+      pathname,
+      config.trailingSlash || "never",
+    );
+
+    if (needsCanonicalRedirect) {
+      const canonicalUrl = getCanonicalUrl(
+        pathname,
+        window.location.search,
+        window.location.hash,
+        config.trailingSlash || "never",
+      );
+      window.history.replaceState({ path: canonicalUrl }, "", canonicalUrl);
+      return this.mountInitialComponent();
+    }
+
+    const match = findRoute(this.router, "GET", canonicalPath);
 
     if (!match?.data) {
+      this.handleError(new Error(`Route not found: ${path}`));
       return;
     }
 
     const route = match.data as Route;
-    const params = match.params || {};
+    const params = parseRouteParams(route.path, match);
+    const oxideUrl = parseUrl(path);
 
-    try {
-      // For SSR hydration, we don't need to fetch payload - it should be embedded
-      const payload: NavigationPayload = {
-        url: normalizedPath,
-        params,
-        data: (window as any).__OXIDE_SSR_DATA__ || {},
-        timestamp: Date.now(),
-      };
+    const ssrData = (window as any).__OXIDE_SSR_DATA__;
+    const payload: NavigationPayload = {
+      url: oxideUrl,
+      params,
+      data: ssrData || {},
+      timestamp: Date.now(),
+    };
 
-      await this.renderRoute(route, params, payload, true);
+    this.cachePayload(path, payload);
 
-      this.setState({
-        currentRoute: route,
-        currentParams: params,
-        loading: false,
-      });
+    this.setState({
+      currentRoute: route,
+      currentParams: params,
+      currentUrl: oxideUrl,
+      loading: false,
+    });
 
-      this.mounted = true;
-    } catch (error) {
-      this.handleError(error as Error);
-    }
+    this.routeStore.update({
+      params,
+      url: oxideUrl,
+      matched: route,
+      canonical: path,
+    });
+
+    this.payloadStore.update(payload.data || {});
+
+    await this.renderRoute(route, params, oxideUrl, payload, true);
+    this.mounted = true;
   }
 
   private async renderRoute(
     route: Route,
-    params: Record<string, string>,
+    params: Record<string, string | string[]>,
+    url: OxideUrl,
     payload: NavigationPayload,
-    isInitial = false,
+    isHydration = false,
   ): Promise<void> {
     const appElement = document.getElementById(APP_ELEMENT_ID);
+
     if (!appElement) {
-      throw new Error("App element not found");
+      throw new Error(`App element with id "${APP_ELEMENT_ID}" not found`);
     }
 
-    try {
-      // Load the route component
-      const componentModule = await this.routeManifest?.importRoute?.(route.handler);
-      const Component = componentModule?.default;
+    const componentModule = await this.routeManifest.importRoute?.(route.handler);
+    const Component = componentModule?.default;
 
-      if (!Component) {
-        throw new Error(`No default export found in ${route.handler}`);
+    if (!Component) {
+      throw new Error(`Component not found for route: ${route.handler}`);
+    }
+
+    const routeLayouts = this.getLayoutsForRoute(route);
+
+    const layoutComponents = await Promise.all(
+      routeLayouts.map(async (layout) => {
+        const layoutModule = await this.routeManifest.importRoute?.(layout.handler);
+        return layoutModule?.default;
+      }),
+    );
+
+    if (layoutComponents.length > 0) {
+      const LayoutRenderer = this.routeManifest.LayoutRenderer;
+
+      if (!LayoutRenderer) {
+        throw new Error("LayoutRenderer not found in route manifest");
       }
 
-      // Get layouts for this route
-      const routeLayouts = this.getLayoutsForRoute(route.handler);
+      const mountFn = isHydration && this.mounted === false ? hydrate : mount;
 
-      // Load layout components
-      const layoutComponents = await Promise.all(
-        routeLayouts.map(async (layout) => {
-          try {
-            const layoutModule = await this.routeManifest?.importRoute?.(layout.handler);
-            return layoutModule?.default;
-          } catch (error) {
-            return null;
-          }
-        }),
-      );
+      mountFn(LayoutRenderer, {
+        target: appElement,
+        props: {
+          routeComponent: Component,
+          layoutComponents,
+          params,
+          url,
+        },
+      });
+    } else {
+      const mountFn = isHydration && this.mounted === false ? hydrate : mount;
 
-      let component;
+      mountFn(Component, {
+        target: appElement,
+        props: { params, url },
+      });
+    }
 
-      if (isInitial && !this.mounted) {
-        // First load - hydrate the server-rendered content
-        if (layoutComponents.some((l) => l)) {
-          const LayoutRenderer = this.routeManifest?.LayoutRenderer;
-          if (!LayoutRenderer) {
-            throw new Error("LayoutRenderer not found in route manifest");
-          }
-          component = hydrate(LayoutRenderer, {
-            target: appElement,
-            props: {
-              routeComponent: Component,
-              layoutComponents: layoutComponents.filter((l) => l),
-              params,
-            },
-          });
-        } else {
-          component = hydrate(Component, {
-            target: appElement,
-            props: { params },
-          });
-        }
+    if (!isHydration && this.mounted) {
+      appElement.innerHTML = "";
+
+      if (layoutComponents.length > 0) {
+        const LayoutRenderer = this.routeManifest.LayoutRenderer;
+
+        mount(LayoutRenderer, {
+          target: appElement,
+          props: {
+            routeComponent: Component,
+            layoutComponents,
+            params,
+            url,
+          },
+        });
       } else {
-        // Client-side navigation - clear and mount fresh
-        if ((appElement as any)._oxideComponent) {
-          appElement.innerHTML = "";
-        }
-
-        if (layoutComponents.some((l) => l)) {
-          const LayoutRenderer = this.routeManifest?.LayoutRenderer;
-          if (!LayoutRenderer) {
-            throw new Error("LayoutRenderer not found in route manifest");
-          }
-          component = mount(LayoutRenderer, {
-            target: appElement,
-            props: {
-              routeComponent: Component,
-              layoutComponents: layoutComponents.filter((l) => l),
-              params,
-            },
-          });
-        } else {
-          component = mount(Component, {
-            target: appElement,
-            props: { params },
-          });
-        }
+        mount(Component, {
+          target: appElement,
+          props: { params, url },
+        });
       }
-
-      // Store component reference
-      (appElement as any)._oxideComponent = component;
-    } catch (error) {
-      throw error;
     }
   }
 
@@ -327,42 +416,30 @@ class OxideClientRouter {
     const appElement = document.getElementById(APP_ELEMENT_ID);
     if (!appElement) return;
 
-    // Find the nearest error boundary
-    const currentPath = this.state.currentRoute?.handler || "";
-    const errorBoundaries = this.getErrorBoundariesForRoute(currentPath);
+    const currentPath = window.location.pathname;
+    const errorBoundaries = this.getErrorBoundariesForRoute({ path: currentPath } as Route);
 
-    if (errorBoundaries.length > 0) {
-      // Use the nearest (highest level) error boundary
-      const nearestError = errorBoundaries[errorBoundaries.length - 1];
-      if (!nearestError) return this.renderFallbackError(error);
+    const nearestError =
+      errorBoundaries.length > 0 ? errorBoundaries[errorBoundaries.length - 1] : null;
 
-      this.routeManifest
-        ?.importRoute?.(nearestError.handler)
-        .then((errorModule) => {
-          const ErrorComponent = errorModule?.default;
-          if (ErrorComponent) {
-            const ErrorRenderer = this.routeManifest.ErrorRenderer;
-            if (ErrorRenderer) {
-              const component = mount(ErrorRenderer, {
-                target: appElement,
-                props: {
-                  error,
-                  errorComponent: ErrorComponent,
-                  params: this.state.currentParams,
-                  retry: () => window.location.reload(),
-                },
-              });
-              (appElement as any)._oxideComponent = component;
-            } else {
-              this.renderFallbackError(error);
-            }
-          } else {
-            this.renderFallbackError(error);
-          }
-        })
-        .catch(() => {
-          this.renderFallbackError(error);
+    if (nearestError) {
+      this.routeManifest.importRoute?.(nearestError.handler).then((errorModule) => {
+        const ErrorComponent = errorModule?.default;
+        const ErrorRenderer = this.routeManifest.ErrorRenderer;
+
+        mount(ErrorRenderer || ErrorComponent, {
+          target: appElement,
+          props: {
+            error,
+            errorComponent: ErrorComponent,
+            params: this.state.currentParams,
+            retry: () => {
+              const path = window.location.pathname + window.location.search + window.location.hash;
+              this.navigateTo(path, { pushState: false });
+            },
+          },
         });
+      });
     } else {
       this.renderFallbackError(error);
     }
@@ -373,99 +450,65 @@ class OxideClientRouter {
     if (!appElement) return;
 
     appElement.innerHTML = `
-      <div style="padding: 2rem; text-align: center; color: #ef4444; border: 1px solid #ef4444; border-radius: 8px; margin: 1rem; background: #fef2f2;">
-        <h1 style="margin: 0 0 1rem 0; font-size: 1.5rem;">Something went wrong</h1>
-        <p style="margin: 0 0 1rem 0; color: #7f1d1d;">
-          ${error.message || "An unexpected error occurred"}
-        </p>
-        <button onclick="window.location.reload()" style="padding: 0.5rem 1rem; background: #ef4444; color: white; border: none; border-radius: 4px; cursor: pointer; margin-right: 0.5rem;">
-          Try Again
-        </button>
-        <button onclick="window.location.href = '/'" style="padding: 0.5rem 1rem; background: #6b7280; color: white; border: none; border-radius: 4px; cursor: pointer;">
-          Go Home
-        </button>
+      <div style="padding: 2rem; text-align: center; color: #ef4444;">
+        <h1>Error</h1>
+        <p>${error.message}</p>
+        <button onclick="window.location.reload()">Reload</button>
       </div>
     `;
   }
 
-  private getLayoutsForRoute(routeHandler: string): Layout[] {
-    const routePath = this.getRoutePath(routeHandler);
+  private getLayoutsForRoute(route: Route): Layout[] {
+    const routePath = this.getRoutePath(route);
     const routeSegments = routePath.split("/").filter(Boolean);
 
     return this.layouts
       .filter((layout) => {
-        const layoutPath = this.getRoutePath(layout.handler);
+        const layoutPath = layout.segment;
         const layoutSegments = layoutPath.split("/").filter(Boolean);
 
-        // Layout applies if route path starts with layout path
-        if (layoutSegments.length === 0) return true; // Root layout
-        if (layoutSegments.length > routeSegments.length) return false;
-
-        return layoutSegments.every((segment, index) => segment === routeSegments[index]);
+        return routeSegments.slice(0, layoutSegments.length).join("/") === layoutSegments.join("/");
       })
       .sort((a, b) => a.level - b.level);
   }
 
-  private getErrorBoundariesForRoute(routeHandler: string): ErrorBoundary[] {
-    const routePath = this.getRoutePath(routeHandler);
+  private getErrorBoundariesForRoute(route: Route): ErrorBoundary[] {
+    const routePath = this.getRoutePath(route);
     const routeSegments = routePath.split("/").filter(Boolean);
 
     return this.errors
       .filter((error) => {
-        const errorPath = this.getRoutePath(error.handler);
+        const errorPath = error.segment;
         const errorSegments = errorPath.split("/").filter(Boolean);
 
-        // Error boundary applies if route path starts with error path
-        if (errorSegments.length === 0) return true; // Root error boundary
-        if (errorSegments.length > routeSegments.length) return false;
-
-        return errorSegments.every((segment, index) => segment === routeSegments[index]);
+        return routeSegments.slice(0, errorSegments.length).join("/") === errorSegments.join("/");
       })
       .sort((a, b) => a.level - b.level);
   }
 
-  private getRoutePath(handler: string): string {
-    // Extract path from handler: "src/routes/about/+layout.svelte" -> "about"
-    const match = handler.match(/src\/routes\/(.+)\/[^/]+$/);
-    return match?.[1] ?? "";
+  private getRoutePath(route: Route): string {
+    return route.handler;
   }
 
-  private normalizePath(path: string): string {
-    try {
-      const url = new URL(path, window.location.origin);
-      let pathname = url.pathname;
+  private handleScrollBehavior(scroll?: ScrollOptions): void {
+    if (!scroll) return;
 
-      // Remove trailing slash except for root
-      if (pathname !== "/" && pathname.endsWith("/")) {
-        pathname = pathname.slice(0, -1);
-      }
-
-      return pathname + url.search + url.hash;
-    } catch {
-      return path;
-    }
-  }
-
-  private handleScrollBehavior(scroll?: ScrollOptions) {
-    if (!scroll || scroll.behavior === "preserve") {
+    if (scroll.behavior === "preserve") {
       return;
     }
 
-    if (scroll.behavior === "top" || !scroll.behavior) {
+    requestAnimationFrame(() => {
       window.scrollTo({
         top: scroll.top || 0,
         left: scroll.left || 0,
-        behavior: "smooth",
+        behavior: scroll.behavior === "auto" ? "auto" : "smooth",
       });
-    }
-
-    // "auto" behavior is handled by the browser for back/forward navigation
+    });
   }
 
-  private setState(newState: Partial<RouterState>) {
+  private setState(newState: Partial<RouterState>): void {
     this.state = { ...this.state, ...newState };
 
-    // Emit custom event for state changes
     window.dispatchEvent(
       new CustomEvent("oxide:navigation", {
         detail: this.state,
@@ -474,56 +517,51 @@ class OxideClientRouter {
   }
 
   async preloadRoute(path: string): Promise<void> {
-    const normalizedPath = this.normalizePath(path);
+    const normalizedPath = normalizePathWithTrailingSlash(
+      new URL(path, window.location.origin).pathname,
+      getConfig().trailingSlash || "never",
+    );
     const match = findRoute(this.router, "GET", normalizedPath);
 
     if (!match?.data) return;
 
     const route = match.data as Route;
 
-    try {
-      // Preload component
-      const componentPromise = this.routeManifest?.importRoute?.(route.handler);
+    const componentPromise = this.routeManifest.importRoute?.(route.handler);
 
-      // Preload layouts
-      const layouts = this.getLayoutsForRoute(route.handler);
-      const layoutPromises = layouts.map((layout) =>
-        this.routeManifest?.importRoute?.(layout.handler),
-      );
+    const layouts = this.getLayoutsForRoute(route);
+    const layoutPromises = layouts.map((layout) =>
+      this.routeManifest.importRoute?.(layout.handler),
+    );
 
-      // Preload navigation payload
-      let payloadPromise: Promise<NavigationPayload> | null = null;
-      if (!this.getCachedPayload(normalizedPath)) {
-        payloadPromise = this.fetchNavigationPayload(normalizedPath, new AbortController().signal)
-          .then((payload) => {
-            this.cachePayload(normalizedPath, payload);
-            return payload;
-          })
-          .catch(() => {
-            // Ignore preload payload errors
-            return {
-              url: normalizedPath,
-              params: {},
-              data: {},
-              timestamp: Date.now(),
-            };
-          });
-      }
+    let payloadPromise: Promise<NavigationPayload> | null = null;
+    const fullPath = path;
 
-      // Wait for all preloads
-      await Promise.all([componentPromise, ...layoutPromises, payloadPromise].filter(Boolean));
-    } catch (error) {
-      // Silently fail preload
+    if (!this.getCachedPayload(fullPath)) {
+      payloadPromise = this.fetchNavigationPayload(fullPath, new AbortController().signal);
     }
+
+    await Promise.all([
+      componentPromise,
+      ...layoutPromises,
+      payloadPromise?.then((payload) => {
+        if (payload) {
+          this.cachePayload(fullPath, payload);
+        }
+      }),
+    ]);
   }
 
-  // Public API
   getCurrentRoute(): Route | undefined {
     return this.state.currentRoute;
   }
 
-  getCurrentParams(): Record<string, string> {
+  getCurrentParams(): Record<string, string | string[]> {
     return this.state.currentParams;
+  }
+
+  getCurrentUrl(): OxideUrl {
+    return this.state.currentUrl;
   }
 
   getState(): RouterState {
@@ -551,7 +589,6 @@ class OxideClientRouter {
   }
 }
 
-// Global router instance
 let oxideRouter: OxideClientRouter | undefined;
 
 export async function initializeOxideRouter(
@@ -563,6 +600,12 @@ export async function initializeOxideRouter(
 
   oxideRouter = new OxideClientRouter();
   await oxideRouter.initialize(routesManifest);
+
+  // Make router globally accessible for context API fallback
+  if (typeof window !== "undefined") {
+    (window as any).__OXIDE_ROUTER__ = oxideRouter;
+  }
+
   return oxideRouter;
 }
 
@@ -570,7 +613,4 @@ export function getOxideRouter(): OxideClientRouter | undefined {
   return oxideRouter;
 }
 
-// Make router available globally for debugging
-if (typeof window !== "undefined") {
-  (window as any).__OXIDE_ROUTER__ = () => oxideRouter;
-}
+export { useRouter, useRoute, usePayload } from "./context.js";

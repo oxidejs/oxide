@@ -1,17 +1,20 @@
 <script lang="ts">
     import type { ComponentType } from "svelte";
+    import type { OxideUrl } from "../src/types.js";
 
     let {
         error,
         errorComponent,
         fallbackComponent,
         params = {},
+        url,
         retry
     }: {
         error: Error;
         errorComponent?: ComponentType;
         fallbackComponent?: ComponentType;
         params?: Record<string, any>;
+        url?: OxideUrl;
         retry?: () => void;
     } = $props();
 
@@ -20,7 +23,8 @@
 </script>
 
 {#if shouldRenderErrorComponent}
-    <svelte:component this={errorComponent} {error} {params} {retry} />
+    {@const ErrorComponent = errorComponent}
+    <ErrorComponent {error} {params} {url} {retry} />
 {:else if shouldRenderFallback}
     <div class="error-fallback" style="padding: 2rem; text-align: center; color: #ef4444; border: 1px solid #ef4444; border-radius: 8px; margin: 1rem; background: #fef2f2;">
         <h1 style="margin: 0 0 1rem 0; font-size: 1.5rem;">Something went wrong</h1>

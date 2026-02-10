@@ -1,6 +1,3 @@
-// Main browser-friendly entry point for oxidejs
-// This module only contains client-side code and actions
-
 export type {
   LinkOptions,
   NavigationOptions,
@@ -10,6 +7,7 @@ export type {
   ErrorBoundary,
   RouteManifest,
   NavigationPayload,
+  OxideUrl,
 } from "./types.js";
 
 export {
@@ -21,3 +19,13 @@ export {
   isSameOriginUrl,
   normalizeUrl,
 } from "./client-actions.js";
+
+export type { OxideUrl as OxideUrlType, RouteState, Router } from "./context.js";
+
+export { useRouter, useRoute, usePayload, parseUrl } from "./context.js";
+
+export type { OxideConfig } from "./config.js";
+
+export { setConfig, getConfig } from "./config.js";
+
+export { parseRouteParams } from "./shared-utils.js";

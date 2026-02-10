@@ -1,5 +1,6 @@
 import { readdirSync, statSync, existsSync } from "node:fs";
 import { join, relative } from "node:path";
+export { parseRouteParams } from "./shared-utils.js";
 
 export interface ScannedRoutes {
   routes: string[];
@@ -154,15 +155,24 @@ export function generateImportStatements(
   importPrefix: string,
 ): { routeImports: string; layoutImports: string; errorImports: string } {
   const routeImports = routes
-    .map((route, idx) => `import Route${idx} from "${importPrefix}${routesDir}/${route.replace(/\\/g, "/")}";`)
+    .map(
+      (route, idx) =>
+        `import Route${idx} from "${importPrefix}${routesDir}/${route.replace(/\\/g, "/")}";`,
+    )
     .join("\n");
 
   const layoutImports = layouts
-    .map((layout, idx) => `import Layout${idx} from "${importPrefix}${routesDir}/${layout.replace(/\\/g, "/")}";`)
+    .map(
+      (layout, idx) =>
+        `import Layout${idx} from "${importPrefix}${routesDir}/${layout.replace(/\\/g, "/")}";`,
+    )
     .join("\n");
 
   const errorImports = errors
-    .map((error, idx) => `import Error${idx} from "${importPrefix}${routesDir}/${error.replace(/\\/g, "/")}";`)
+    .map(
+      (error, idx) =>
+        `import Error${idx} from "${importPrefix}${routesDir}/${error.replace(/\\/g, "/")}";`,
+    )
     .join("\n");
 
   return { routeImports, layoutImports, errorImports };

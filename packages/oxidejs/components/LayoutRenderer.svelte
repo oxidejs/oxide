@@ -1,16 +1,19 @@
 <script lang="ts">
     import LayoutRenderer from './LayoutRenderer.svelte';
     import type { ComponentType } from "svelte";
+    import type { OxideUrl } from "../src/types.js";
 
     let {
         routeComponent,
         layoutComponents = [],
         params = {},
+        url,
         layoutIndex = 0
     }: {
         routeComponent: ComponentType;
         layoutComponents: ComponentType[];
         params: Record<string, any>;
+        url: OxideUrl;
         layoutIndex?: number;
     } = $props();
 
@@ -20,16 +23,19 @@
 </script>
 
 {#if shouldRenderRoute}
-    <svelte:component this={routeComponent} {params} />
+    {@const Component = routeComponent}
+    <Component {params} {url} />
 {:else}
-    <svelte:component this={currentLayout}>
+    {@const Layout = currentLayout}
+    <Layout {params} {url}>
         {#snippet children()}
             <LayoutRenderer
                 {routeComponent}
                 {layoutComponents}
                 {params}
+                {url}
                 layoutIndex={layoutIndex + 1}
             />
         {/snippet}
-    </svelte:component>
+    </Layout>
 {/if}

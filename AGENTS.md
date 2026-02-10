@@ -6,6 +6,7 @@ This is a monorepo for Oxide, a Svelte Web framework with SSR support, built on 
 
 - Read the damn DOCS.md before doing anything.
 - If a package contains SPECIFICATION.md, read it before working on that package.
+- If you change anything in packages/oxidejs that's worth mentioning, please update the IMPLEMENTATION.md file.
 - Do not run commands yourself. Tell me what should I run.
 - Use Bun runtime for development.
 - Use Context7 MCP to get more context about nitrojs/nitro and vitejs/vite if needed.

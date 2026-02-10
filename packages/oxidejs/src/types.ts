@@ -1,3 +1,12 @@
+export interface OxideUrl {
+  href: string;
+  pathname: string;
+  search: string;
+  hash: string;
+  origin: string;
+  query: Record<string, string>;
+}
+
 export type Route = {
   path: string;
   handler: string;
@@ -24,8 +33,8 @@ export type RouteWithLayouts = {
 };
 
 export interface NavigationPayload {
-  url: string;
-  params: Record<string, string>;
+  url: OxideUrl;
+  params: Record<string, string | string[]>;
   data?: Record<string, any>;
   timestamp: number;
 }
@@ -67,8 +76,8 @@ export interface PreloadCache {
 }
 
 export interface NavigationState {
-  url: string;
-  params: Record<string, string>;
+  url: OxideUrl;
+  params: Record<string, string | string[]>;
   loading: boolean;
   error?: Error;
 }
@@ -81,8 +90,9 @@ export interface ViewTransitionOptions {
 }
 
 export interface OxideConfig {
+  routesDir?: string;
+  trailingSlash?: "never" | "always" | "ignore";
   base?: string;
-  trailingSlash?: "always" | "never" | "ignore";
   preload?: {
     default?: boolean | "hover" | "viewport" | "intent";
     rootMargin?: string;

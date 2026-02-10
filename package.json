@@ -9,6 +9,7 @@
   ],
   "type": "module",
   "scripts": {
+    "build:framework": "bun run --filter 'oxidejs' build",
     "lint": "oxlint",
     "lint:fix": "oxlint --fix",
     "fmt": "oxfmt"
