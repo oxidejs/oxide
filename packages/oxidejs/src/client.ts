@@ -70,9 +70,9 @@ class OxideClientRouter implements Router {
     this.payloadStore = createPayloadStore<any>({});
   }
 
-  async initialize(routesManifest?: RouteManifest) {
+  async initialize(router?: RouteManifest) {
     try {
-      this.routeManifest = routesManifest || (window as any).__OXIDE_ROUTES_MANIFEST__ || {};
+      this.routeManifest = router || (window as any).__OXIDE_ROUTES_MANIFEST__ || {};
       this.routes = this.routeManifest?.routes || [];
       this.layouts = this.routeManifest?.layouts || [];
       this.errors = this.routeManifest?.errors || [];
@@ -591,15 +591,13 @@ class OxideClientRouter implements Router {
 
 let oxideRouter: OxideClientRouter | undefined;
 
-export async function initializeOxideRouter(
-  routesManifest?: RouteManifest,
-): Promise<OxideClientRouter> {
+export async function initializeOxideRouter(router?: RouteManifest): Promise<OxideClientRouter> {
   if (oxideRouter) {
     return oxideRouter;
   }
 
   oxideRouter = new OxideClientRouter();
-  await oxideRouter.initialize(routesManifest);
+  await oxideRouter.initialize(router);
 
   // Make router globally accessible for context API fallback
   if (typeof window !== "undefined") {

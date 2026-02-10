@@ -65,6 +65,9 @@ export interface RouteManifest {
   importRouteAssets?(handler: string): Promise<any>;
   LayoutRenderer?: any;
   ErrorRenderer?: any;
+  config?: {
+    trailingSlash?: "never" | "always" | "ignore";
+  };
 }
 
 export interface PreloadCache {

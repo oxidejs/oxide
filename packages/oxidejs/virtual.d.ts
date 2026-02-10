@@ -1,4 +1,4 @@
-declare module "#oxide/routes" {
+declare module "#oxide/router" {
   export interface Route {
     path: string;
     handler: string;

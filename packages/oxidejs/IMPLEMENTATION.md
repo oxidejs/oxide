@@ -82,10 +82,15 @@ Provides Svelte context-based composables for non-routed components:
 ### 8. Server-Side Rendering (`src/nitro.ts`)
 
 - Nitro-based handler (`OxideHandler` class)
+  - Constructor accepts optional parameters:
+    - `router`: RouteManifest (should be passed from virtual module `#oxide/router`)
+    - `routesDir`: string (legacy, not typically used)
+  - `trailingSlash` is auto-detected from `router.config.trailingSlash`
+  - Handles both SSR rendering and navigation payload requests internally
 - Route matching with catch-all support
-- Navigation payload endpoint (`/__oxide/payload/**`)
+- Navigation payload endpoint (`/__oxide/payload/**`) handled internally by OxideHandler
 - Proper params parsing (catch-all as arrays)
-- Layout and error boundary rendering
+- Layout rendering via recursive composition
 - HTML generation with SSR data embedding
 - Development mode detection (Vite client script injection)
 
@@ -133,10 +138,16 @@ Svelte actions for progressive enhancement:
 ### 12. Build Integration (`src/with-oxide.ts`)
 
 - `withOxide(options)` function returns NitroConfig
-- Generates `.oxide/client.ts` entry point
-- Virtual module `#oxide/routes` for SSR
-- Route manifest generation on build/dev
+- Generates `.oxide/client.ts` entry point for client-side hydration
+- Virtual module for SSR:
+  - `#oxide/router` - Route manifest with all routes, layouts, errors, and config
+    - Contains compiled Svelte components and route metadata
+    - Imported by `src/renderer.ts` and passed to OxideHandler
+- Route manifest generation on build/dev via hooks
 - Client/server code splitting
+- Users control `src/renderer.ts` for full customization (can add other handlers/middleware)
+- Users control `src/error.ts` for error handling customization
+- Payload endpoint handling is automatic (handled by OxideHandler, no separate file needed)
 
 ## 📝 Key Architectural Decisions
 
@@ -174,15 +185,40 @@ Svelte actions for progressive enhancement:
 ## 🚀 Usage Example
 
 ```typescript
-// nitro.config.ts
-import { withOxide } from "oxidejs";
+// vite.config.ts
+import { defineConfig } from "vite";
+import { svelte } from "@sveltejs/vite-plugin-svelte";
+import { nitro } from "nitro/vite";
+import { withOxide } from "oxidejs/nitro";
 
-export default defineNitroConfig({
-  ...withOxide({
+export default defineConfig({
+  plugins: [svelte(), nitro()],
+  nitro: withOxide({
     routesDir: "src/routes",
     trailingSlash: "never",
   }),
 });
+```
+
+```typescript
+// src/renderer.ts
+import { type H3Event, HTTPError } from "nitro/h3";
+import { OxideHandler } from "oxidejs/nitro";
+import router from "#oxide/router";
+
+const oxideHandler = new OxideHandler({
+  router,
+});
+
+async function renderer(event: H3Event) {
+  const { matched, response } = await oxideHandler.handle(event);
+  if (matched) {
+    return response;
+  }
+  throw HTTPError.status(404);
+}
+
+export default renderer;
 ```
 
 ```svelte
@@ -266,7 +302,12 @@ Oxide strictly separates client and server exports to maintain browser compatibi
 **⚠️ Do NOT import from this in browser code!**
 
 - `OxideHandler` class - Server-side request handler
+  - Constructor signature: `new OxideHandler(options?: { routesDir?, router? })`
+  - All parameters are optional but `router` should be provided from `#oxide/router`
+  - `trailingSlash` setting is auto-detected from `router.config.trailingSlash`
+  - Handles both SSR rendering and payload endpoint requests
 - `withOxide(options)` - Nitro config generator
+  - Returns NitroConfig with hooks, renderer, errorHandler, routeRules, and virtual modules
 - Types: `OxideConfig`, `RouteManifest`
 - Route utilities: `scanRoutesDirectory()`, `generateRouteManifestArrays()`, `generateImportStatements()`, `filePathToUrl()`, `getRoutePriority()`, `normalizeRoutesDirPath()`
 - Shared utils: `parseRouteParams()`, `parseUrl()`
@@ -298,6 +339,18 @@ The context API (`useRouter`, `useRoute`, `usePayload`) works in two modes:
    - Required if you want to avoid global state
    - Wrap your app root with the provider component
 
+### Payload Handler (Automatic)
+
+Oxide automatically handles navigation payload requests:
+
+- **No `src/payload.ts` needed** - payload handling is built into OxideHandler
+- OxideHandler detects payload requests via:
+  - `X-Oxide-Navigation` header
+  - `/__oxide/payload/**` path prefix
+- Returns JSON payload for client-side navigation
+- Users maintain full control over `src/renderer.ts` for customization (can add middleware, other handlers, etc.)
+- Users maintain control over `src/error.ts` for error handling customization
+
 ## 🧹 Cleanup & Code Quality
 
 ### Svelte 5 Compatibility
@@ -310,7 +363,8 @@ The context API (`useRouter`, `useRoute`, `usePayload`) works in two modes:
 
 - Strict browser/server separation to avoid bundling node modules in client code
 - Shared utilities extracted to `shared-utils.ts` for code reusable in both environments
-- Unused variables removed
+- Unused imports and variables removed (`getConfig`, `ErrorBoundary`, `getErrorBoundariesForRoute`)
+- Clean code with no debug logs in production paths
 - JSDoc comments added for internal APIs
 
 ### Error Handling
@@ -323,8 +377,13 @@ The context API (`useRouter`, `useRoute`, `usePayload`) works in two modes:
 
 The following are configuration-level issues, not code issues:
 
-- Missing `@types/node` in dev environment (resolved by project tsconfig)
+- Missing h3 type declarations in dev environment (resolved by project tsconfig and dependencies)
 - `nitropack` vs `nitro` type imports (resolved by package resolution)
+
+### Dependencies
+
+- `dedent` - For template literal formatting
+- `rou3` - For route matching (priority-based, params, wildcards)
 
 ## ✨ Next Steps
 

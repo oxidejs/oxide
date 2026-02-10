@@ -1,8 +1,8 @@
 import { type H3Event, HTTPError } from "nitro/h3";
 import { OxideHandler } from "oxidejs/nitro";
-import routesManifest from "#oxide/routes";
+import router from "#oxide/router";
 
-const oxideHandler = new OxideHandler({ routesManifest });
+const oxideHandler = new OxideHandler({ router });
 
 async function renderer(event: H3Event) {
   const { matched, response } = await oxideHandler.handle(event);

@@ -8,7 +8,7 @@ declare global {
   }
 }
 
-declare module "#oxide/routes" {
+declare module "#oxide/router" {
   export const routes: Route[];
   export const layouts: Layout[];
   export function importRoute(handler: string): Promise<any>;

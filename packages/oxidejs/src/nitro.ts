@@ -4,21 +4,13 @@ import { render } from "svelte/server";
 import dedent from "dedent";
 import { readdirSync, existsSync } from "node:fs";
 import path from "node:path";
-import type {
-  Route,
-  Layout,
-  ErrorBoundary,
-  NavigationPayload,
-  RouteManifest,
-  OxideUrl,
-} from "./types.js";
+import type { Route, Layout, NavigationPayload, RouteManifest, OxideUrl } from "./types.js";
 import { parseRouteParams } from "./shared-utils.js";
 import { parseUrl } from "./context.js";
 import {
   normalizePathWithTrailingSlash,
   shouldRedirectForTrailingSlash,
   getCanonicalUrl,
-  getConfig,
 } from "./config.js";
 
 const PAYLOAD_ROUTE_PREFIX = "/__oxide/payload";
@@ -27,18 +19,25 @@ const DEFAULT_TITLE = "<title>Oxide</title>";
 
 export class OxideHandler {
   private isDev: boolean;
-  private routesManifest?: RouteManifest;
-  private router = createRouter();
+  private router?: RouteManifest;
 
-  constructor({
-    routesDir: _routesDir,
-    routesManifest,
-  }: { routesDir?: string; routesManifest?: RouteManifest } = {}) {
+  private trailingSlash: "never" | "always" | "ignore" = "never";
+
+  constructor(
+    options: {
+      routesDir?: string;
+      router?: RouteManifest;
+    } = {},
+  ) {
     this.isDev = this.detectDevMode();
-    this.routesManifest = routesManifest;
+    this.router = options.router;
 
-    if (this.routesManifest?.routes) {
-      const sortedRoutes = [...this.routesManifest.routes].sort((a, b) => {
+    if (this.router?.config?.trailingSlash) {
+      this.trailingSlash = this.router.config.trailingSlash;
+    }
+
+    if (this.router?.routes) {
+      const sortedRoutes = [...this.router.routes].sort((a, b) => {
         if (a.priority !== b.priority) {
           return b.priority - a.priority;
         }
@@ -46,10 +45,12 @@ export class OxideHandler {
       });
 
       for (const route of sortedRoutes) {
-        addRoute(this.router, "GET", route.path, route);
+        addRoute(this.routerInstance, "GET", route.path, route);
       }
     }
   }
+
+  private routerInstance = createRouter();
 
   async handle(event: H3Event): Promise<{ matched: boolean; response: Response }> {
     const url = new URL(event?.req?.url ?? "/", "http://localhost");
@@ -59,22 +60,19 @@ export class OxideHandler {
     const isNavigationPayloadRequest = this.isNavigationRequest(event);
 
     try {
-      if (!this.routesManifest) {
+      if (!this.router) {
         return this.createErrorResponse("No routes manifest provided", 500);
       }
-
-      const config = getConfig();
-      const trailingSlash = config.trailingSlash || "never";
 
       if (isNavigationPayloadRequest || pathname.startsWith(PAYLOAD_ROUTE_PREFIX)) {
         const actualPath = this.extractPayloadPath(pathname);
         return this.handleNavigationPayload(actualPath, url);
       }
 
-      const needsCanonicalRedirect = shouldRedirectForTrailingSlash(pathname, trailingSlash);
+      const needsCanonicalRedirect = shouldRedirectForTrailingSlash(pathname, this.trailingSlash);
 
       if (needsCanonicalRedirect) {
-        const canonicalUrl = getCanonicalUrl(pathname, search, hash, trailingSlash);
+        const canonicalUrl = getCanonicalUrl(pathname, search, hash, this.trailingSlash);
         return {
           matched: true,
           response: new Response(null, {
@@ -86,11 +84,11 @@ export class OxideHandler {
         };
       }
 
-      const normalizedPath = normalizePathWithTrailingSlash(pathname, trailingSlash);
-      const match = findRoute(this.router, "GET", normalizedPath);
+      const normalizedPath = normalizePathWithTrailingSlash(pathname, this.trailingSlash);
+      const match = findRoute(this.routerInstance, "GET", normalizedPath);
 
       if (!match?.data) {
-        const catchAllMatch = this.routesManifest.routes?.find(
+        const catchAllMatch = this.router.routes?.find(
           (route) => route.path.includes("**:") && this.matchesCatchAll(route.path, normalizedPath),
         );
 
@@ -120,13 +118,11 @@ export class OxideHandler {
     fullUrl: URL,
   ): Promise<{ matched: boolean; response: Response }> {
     try {
-      const config = getConfig();
-      const trailingSlash = config.trailingSlash || "never";
-      const normalizedPath = normalizePathWithTrailingSlash(pathname, trailingSlash);
-      const match = findRoute(this.router, "GET", normalizedPath);
+      const normalizedPath = normalizePathWithTrailingSlash(pathname, this.trailingSlash);
+      const match = findRoute(this.routerInstance, "GET", normalizedPath);
 
       if (!match?.data) {
-        const catchAllMatch = this.routesManifest?.routes?.find(
+        const catchAllMatch = this.router?.routes?.find(
           (route) => route.path.includes("**:") && this.matchesCatchAll(route.path, normalizedPath),
         );
 
@@ -196,7 +192,7 @@ export class OxideHandler {
       const routeLayouts = this.getLayoutsForRoute(route);
       const routeData = await this.loadRouteData(route, params);
 
-      const componentModule = await this.routesManifest?.importRoute?.(route.handler);
+      const componentModule = await this.router?.importRoute?.(route.handler);
       const Component = componentModule?.default;
 
       if (!Component) {
@@ -250,7 +246,7 @@ export class OxideHandler {
   }
 
   private async handleServerError(error: Error): Promise<{ matched: boolean; response: Response }> {
-    const rootErrors = this.routesManifest?.errors?.filter((e) => e.level === 0) || [];
+    const rootErrors = this.router?.errors?.filter((e) => e.level === 0) || [];
 
     if (rootErrors.length > 0) {
       const body = `<div>Error: ${error.message}</div>`;
@@ -314,12 +310,12 @@ export class OxideHandler {
   }
 
   private getLayoutsForRoute(route: Route): Layout[] {
-    if (!this.routesManifest?.layouts) return [];
+    if (!this.router?.layouts) return [];
 
     const routePath = route.handler;
     const routeSegments = routePath.split("/").filter(Boolean);
 
-    return this.routesManifest.layouts
+    return this.router.layouts
       .filter((layout) => {
         const layoutPath = layout.segment;
         const layoutSegments = layoutPath.split("/").filter(Boolean);
@@ -328,25 +324,6 @@ export class OxideHandler {
         if (layoutSegments.length > routeSegments.length) return false;
 
         return layoutSegments.every((segment, index) => segment === routeSegments[index]);
-      })
-      .sort((a, b) => a.level - b.level);
-  }
-
-  private getErrorBoundariesForRoute(route: Route): ErrorBoundary[] {
-    if (!this.routesManifest?.errors) return [];
-
-    const routePath = route.handler;
-    const routeSegments = routePath.split("/").filter(Boolean);
-
-    return this.routesManifest.errors
-      .filter((error) => {
-        const errorPath = error.segment;
-        const errorSegments = errorPath.split("/").filter(Boolean);
-
-        if (errorSegments.length === 0) return true;
-        if (errorSegments.length > routeSegments.length) return false;
-
-        return errorSegments.every((segment, index) => segment === routeSegments[index]);
       })
       .sort((a, b) => a.level - b.level);
   }
@@ -361,13 +338,13 @@ export class OxideHandler {
       const layoutComponents = [];
 
       for (const layout of layouts) {
-        const layoutModule = await this.routesManifest?.importRoute?.(layout.handler);
+        const layoutModule = await this.router?.importRoute?.(layout.handler);
         if (layoutModule?.default) {
           layoutComponents.push(layoutModule.default);
         }
       }
 
-      const LayoutRenderer = this.routesManifest?.LayoutRenderer;
+      const LayoutRenderer = this.router?.LayoutRenderer;
 
       if (!LayoutRenderer) {
         const result = render(Component, { props: { params, url } });
