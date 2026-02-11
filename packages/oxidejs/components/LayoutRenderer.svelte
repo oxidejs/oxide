@@ -1,5 +1,4 @@
 <script lang="ts">
-    import LayoutRenderer from './LayoutRenderer.svelte';
     import type { ComponentType } from "svelte";
     import type { OxideUrl } from "../src/types.js";
 
@@ -8,33 +7,39 @@
         layoutComponents = [],
         params = {},
         url,
-        layoutIndex = 0
+        layoutIndex = 0,
+        routeBody
     }: {
-        routeComponent: ComponentType;
+        routeComponent?: ComponentType;
         layoutComponents: ComponentType[];
         params: Record<string, any>;
         url: OxideUrl;
         layoutIndex?: number;
+        routeBody?: string;
     } = $props();
 
     const currentLayout = $derived(layoutComponents[layoutIndex]);
-    const hasMoreLayouts = $derived(layoutIndex < layoutComponents.length - 1);
     const shouldRenderRoute = $derived(layoutIndex >= layoutComponents.length);
 </script>
 
 {#if shouldRenderRoute}
-    {@const Component = routeComponent}
-    <Component {params} {url} />
+    {#if routeBody}
+        {@html routeBody}
+    {:else if routeComponent}
+        {@const Component = routeComponent}
+        <Component {params} {url} />
+    {/if}
 {:else}
     {@const Layout = currentLayout}
     <Layout {params} {url}>
         {#snippet children()}
-            <LayoutRenderer
+            <svelte:self
                 {routeComponent}
                 {layoutComponents}
                 {params}
                 {url}
                 layoutIndex={layoutIndex + 1}
+                {routeBody}
             />
         {/snippet}
     </Layout>

@@ -207,7 +207,7 @@ export class OxideHandler {
         body = result.body;
         head = result.head;
       } else {
-        const result = render(Component, { props: { params, url } });
+        const result = await render(Component, { props: { params, url } });
         body = result.body;
         head = result.head;
       }
@@ -335,6 +335,9 @@ export class OxideHandler {
     url: OxideUrl,
   ): Promise<{ body: string; head: string }> {
     try {
+      // First, render the route component to handle any async work (e.g., await hydratable())
+      const routeResult = await render(Component, { props: { params, url } });
+      
       const layoutComponents = [];
 
       for (const layout of layouts) {
@@ -344,25 +347,35 @@ export class OxideHandler {
         }
       }
 
+      // If no layouts, just return the route result
+      if (layoutComponents.length === 0) {
+        return { body: routeResult.body, head: routeResult.head };
+      }
+
       const LayoutRenderer = this.router?.LayoutRenderer;
 
       if (!LayoutRenderer) {
-        const result = render(Component, { props: { params, url } });
-        return { body: result.body, head: result.head };
+        // Fallback: return route without layouts
+        return { body: routeResult.body, head: routeResult.head };
       }
 
-      const result = render(LayoutRenderer, {
+      // Use LayoutRenderer to wrap the pre-rendered route HTML in layouts
+      // Don't pass routeComponent when using routeBody to avoid async work
+      const result = await render(LayoutRenderer, {
         props: {
-          routeComponent: Component,
           layoutComponents,
           params,
           url,
+          routeBody: routeResult.body,
         },
       });
 
-      return { body: result.body, head: result.head };
+      // Combine heads from route and layout rendering
+      const combinedHead = routeResult.head + result.head;
+
+      return { body: result.body, head: combinedHead };
     } catch {
-      const result = render(Component, { props: { params, url } });
+      const result = await render(Component, { props: { params, url } });
       return { body: result.body, head: result.head };
     }
   }

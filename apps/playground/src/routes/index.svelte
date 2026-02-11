@@ -1,5 +1,9 @@
 <script lang="ts">
+    import { hydratable } from "svelte";
+
     let timesClicked = $state(0)
+
+    const pokemon = await hydratable('pokemon', () => fetch('https://pokeapi.co/api/v2/pokemon/charizard').then((r) => r.json()))
 
     function increase() {
         timesClicked += 1
@@ -11,5 +15,6 @@
         <h2 class="text-lg font-semibold">Welcome to Oxide</h2>
         <p>Times clicked: {timesClicked}</p>
         <button class="btn btn-lg" onclick={increase}>Click me</button>
+        <p>{pokemon.name}</p>
     </div>
 </div>

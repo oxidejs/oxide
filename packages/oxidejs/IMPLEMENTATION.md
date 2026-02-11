@@ -117,6 +117,7 @@ Svelte actions for progressive enhancement:
 - **`LayoutRenderer.svelte`**: recursive layout composition
   - Passes `params` and `url` to all layouts and route components
   - Uses Svelte 5 snippets for children
+  - Supports async components via `routeBody` prop for pre-rendered HTML
 - **`ErrorRenderer.svelte`**: error boundary rendering
   - Custom error component support
   - Fallback UI with retry/home buttons
@@ -358,6 +359,9 @@ Oxide automatically handles navigation payload requests:
 - All components use proper Svelte 5 runes mode
 - Removed deprecated `<svelte:component>` usage (components are dynamic by default in runes mode)
 - Used `{@const}` for component assignments instead
+- **Fixed `hydratable` support**: Modified `LayoutRenderer.svelte` to accept a `routeBody` prop for pre-rendered HTML
+  - Modified SSR rendering to pre-render route components first, then wrap in layouts
+  - Prevents "await_invalid" errors during SSR when using top-level await with `hydratable`
 
 ### TypeScript
 
