@@ -1,5 +1,5 @@
 import { readdirSync, statSync, existsSync } from "node:fs";
-import { join, relative } from "node:path";
+import { join, relative, resolve } from "node:path";
 export { parseRouteParams } from "./shared-utils.js";
 
 export interface ScannedRoutes {
@@ -154,25 +154,27 @@ export function generateImportStatements(
   routesDir: string,
   importPrefix: string,
 ): { routeImports: string; layoutImports: string; errorImports: string } {
+  const normalizePath = (p: string) => p.replace(/\\/g, "/");
+
   const routeImports = routes
-    .map(
-      (route, idx) =>
-        `import Route${idx} from "${importPrefix}${routesDir}/${route.replace(/\\/g, "/")}";`,
-    )
+    .map((route, idx) => {
+      const fullPath = resolve(process.cwd(), routesDir, route);
+      return `import Route${idx} from "${normalizePath(fullPath)}";`;
+    })
     .join("\n");
 
   const layoutImports = layouts
-    .map(
-      (layout, idx) =>
-        `import Layout${idx} from "${importPrefix}${routesDir}/${layout.replace(/\\/g, "/")}";`,
-    )
+    .map((layout, idx) => {
+      const fullPath = resolve(process.cwd(), routesDir, layout);
+      return `import Layout${idx} from "${normalizePath(fullPath)}";`;
+    })
     .join("\n");
 
   const errorImports = errors
-    .map(
-      (error, idx) =>
-        `import Error${idx} from "${importPrefix}${routesDir}/${error.replace(/\\/g, "/")}";`,
-    )
+    .map((error, idx) => {
+      const fullPath = resolve(process.cwd(), routesDir, error);
+      return `import Error${idx} from "${normalizePath(fullPath)}";`;
+    })
     .join("\n");
 
   return { routeImports, layoutImports, errorImports };

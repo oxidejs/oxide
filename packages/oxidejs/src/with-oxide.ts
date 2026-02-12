@@ -48,7 +48,7 @@ export function withOxide(options: WithOxideOptions = {}): NitroConfig {
       layouts,
       errors,
       routesDir,
-      "../",
+      "",
     );
 
     const {
@@ -169,7 +169,7 @@ initializeOxideRouter(routeManifest);
           layouts,
           errors,
           routesDir,
-          "../../",
+          "",
         );
 
         const {

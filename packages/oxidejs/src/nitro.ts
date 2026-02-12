@@ -207,7 +207,7 @@ export class OxideHandler {
         body = result.body;
         head = result.head;
       } else {
-        const result = await render(Component, { props: { params, url } });
+        const result = await this.renderComponent(Component, params, url);
         body = result.body;
         head = result.head;
       }
@@ -334,50 +334,64 @@ export class OxideHandler {
     params: Record<string, string | string[]>,
     url: OxideUrl,
   ): Promise<{ body: string; head: string }> {
-    try {
-      // First, render the route component to handle any async work (e.g., await hydratable())
-      const routeResult = await render(Component, { props: { params, url } });
-      
-      const layoutComponents = [];
+    // First, render the route component to handle any async work (e.g., top-level await)
+    const routeResult = await this.renderComponent(Component, params, url);
 
-      for (const layout of layouts) {
-        const layoutModule = await this.router?.importRoute?.(layout.handler);
-        if (layoutModule?.default) {
-          layoutComponents.push(layoutModule.default);
-        }
+    const layoutComponents = [];
+
+    for (const layout of layouts) {
+      const layoutModule = await this.router?.importRoute?.(layout.handler);
+      if (layoutModule?.default) {
+        layoutComponents.push(layoutModule.default);
       }
-
-      // If no layouts, just return the route result
-      if (layoutComponents.length === 0) {
-        return { body: routeResult.body, head: routeResult.head };
-      }
-
-      const LayoutRenderer = this.router?.LayoutRenderer;
-
-      if (!LayoutRenderer) {
-        // Fallback: return route without layouts
-        return { body: routeResult.body, head: routeResult.head };
-      }
-
-      // Use LayoutRenderer to wrap the pre-rendered route HTML in layouts
-      // Don't pass routeComponent when using routeBody to avoid async work
-      const result = await render(LayoutRenderer, {
-        props: {
-          layoutComponents,
-          params,
-          url,
-          routeBody: routeResult.body,
-        },
-      });
-
-      // Combine heads from route and layout rendering
-      const combinedHead = routeResult.head + result.head;
-
-      return { body: result.body, head: combinedHead };
-    } catch {
-      const result = await render(Component, { props: { params, url } });
-      return { body: result.body, head: result.head };
     }
+
+    // If no layouts, just return the route result
+    if (layoutComponents.length === 0) {
+      return { body: routeResult.body, head: routeResult.head };
+    }
+
+    const LayoutRenderer = this.router?.LayoutRenderer;
+
+    if (!LayoutRenderer) {
+      // Fallback: return route without layouts
+      return { body: routeResult.body, head: routeResult.head };
+    }
+
+    // Use LayoutRenderer to wrap the pre-rendered route HTML in layouts
+    // Don't pass routeComponent when using routeBody to avoid async work
+    const result = await render(LayoutRenderer, {
+      props: {
+        layoutComponents,
+        params,
+        url,
+        routeBody: routeResult.body,
+      },
+    });
+
+    // Combine heads from route and layout rendering
+    const combinedHead = routeResult.head + result.head;
+
+    return { body: result.body, head: combinedHead };
+  }
+
+  private async renderComponent(
+    Component: any,
+    params: Record<string, string | string[]>,
+    url: OxideUrl,
+  ): Promise<{ body: string; head: string }> {
+    // With Svelte 5.39.3+ and experimental.async enabled,
+    // render() returns a thenable that needs to be awaited for async components
+    const result = render(Component, { props: { params, url } });
+
+    // Svelte 5.39.0+ returns a thenable - await it to get the actual result
+    // This allows async components with top-level await to resolve during SSR
+    const rendered = await result;
+
+    return {
+      body: rendered.body || "",
+      head: rendered.head || "",
+    };
   }
 
   private detectDevMode(): boolean {

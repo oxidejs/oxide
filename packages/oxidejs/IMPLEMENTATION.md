@@ -268,6 +268,48 @@ export default renderer;
 - No form actions or server functions
 - JSON-only payloads (no streaming, no Promises in data)
 
+## 🔧 Build System Compatibility
+
+### Rollup vs Rolldown
+
+The virtual module `#oxide/router` uses **absolute file paths** for importing route components. This ensures compatibility with both Rolldown (Vite's default) and Rollup. Relative paths in virtual modules can fail with Rollup because virtual modules don't have a physical file location to resolve relative paths from.
+
+If you encounter "Failed to load url" errors after switching bundlers, ensure you're using the latest version of oxidejs which generates absolute paths for all route imports.
+
+### Top-level await in route components
+
+Oxide supports using top-level await in route components (the await-first data model). However, Svelte's SSR renderer cannot handle top-level await during server-side rendering - it throws an `await_invalid` error.
+
+To work around this limitation:
+
+1. During SSR, if a component has top-level await, Oxide renders a placeholder `<div id="oxide-async-root"></div>`
+2. The layout (if any) still renders fully around this placeholder
+3. On the client, the component hydrates and executes its async work
+4. The page then displays the full content with resolved data
+
+This allows you to use patterns like:
+```svelte
+<script lang="ts">
+  const data = await fetch('/api/data').then(r => r.json());
+</script>
+
+<p>{data.name}</p>
+```
+
+The layout renders server-side for SEO, while the async content loads client-side after hydration.
+
+**Note:** For full SSR with data, consider using `{#await}` blocks in the template instead of top-level await:
+
+```svelte
+<script lang="ts">
+  const dataPromise = fetch('/api/data').then(r => r.json());
+</script>
+
+{#await dataPromise then data}
+  <p>{data.name}</p>
+{/await}
+```
+
 ## 📦 Export Structure
 
 Oxide strictly separates client and server exports to maintain browser compatibility:

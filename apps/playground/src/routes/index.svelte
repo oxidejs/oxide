@@ -1,9 +1,7 @@
 <script lang="ts">
-    import { hydratable } from "svelte";
-
     let timesClicked = $state(0)
 
-    const pokemon = await hydratable('pokemon', () => fetch('https://pokeapi.co/api/v2/pokemon/charizard').then((r) => r.json()))
+    const pokemon = await fetch('https://pokeapi.co/api/v2/pokemon/charizard').then((r) => r.json())
 
     function increase() {
         timesClicked += 1
