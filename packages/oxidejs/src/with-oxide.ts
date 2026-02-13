@@ -1,5 +1,3 @@
-import type { NitroConfig } from "nitro/types";
-
 import { writeFileSync, mkdirSync } from "node:fs";
 import { resolve } from "node:path";
 
@@ -65,7 +63,7 @@ function generateRouteManifest(routesDir: string) {
  * @param options - Configuration options
  * @returns Nitro configuration object
  */
-export function withOxide(options: WithOxideOptions = {}): NitroConfig {
+export function withOxide(options: WithOxideOptions = {}) {
   const routesDir = options.routesDir ?? "src/routes";
   const trailingSlash = options.trailingSlash ?? "never";
 
@@ -215,7 +213,7 @@ export const router = {
   LayoutRenderer,
   ErrorRenderer,
   config: {
-    trailingSlash: "${trailingSlash}"
+    trailingSlash: "${trailingSlash}" as const
   }
 };
 `;
@@ -228,7 +226,7 @@ export const router = {
     generateServerEntry();
   };
 
-  return {
+  const config = {
     serverDir: "src",
     hooks: {
       "dev:start": generateEntries,
@@ -254,4 +252,6 @@ export const router = {
       },
     },
   };
+
+  return config;
 }

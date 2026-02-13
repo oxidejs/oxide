@@ -299,3 +299,11 @@ Per SPECIFICATION.md, these are intentionally not implemented:
 - Scroll/focus management details
 - Payload caching rules
 - Serialization constraints
+
+## Type Compatibility
+
+### `withOxide()` Return Type
+
+The `withOxide()` function intentionally does not declare an explicit return type (`NitroConfig`). This avoids type incompatibility issues when the `nitro` package exists in multiple `node_modules` locations (e.g., in a monorepo setup).
+
+Instead, the function returns a plain object that is structurally compatible with `NitroConfig`, allowing TypeScript's structural typing to work correctly across package boundaries.
