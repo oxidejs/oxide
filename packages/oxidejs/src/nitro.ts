@@ -53,8 +53,13 @@ export class OxideHandler {
   private routerInstance = createRouter();
 
   async handle(event: H3Event): Promise<{ matched: boolean; response: Response }> {
-    const url = new URL(event?.req?.url ?? "/", "http://localhost");
-    const { pathname, search, hash } = url;
+    // H3Event provides URL as a string, not a URL object
+    // Parse it to extract pathname, search, and hash
+    const urlString = String(event.url || "http://localhost/");
+    const url = new URL(urlString);
+    const pathname = url.pathname;
+    const search = url.search;
+    const hash = url.hash;
 
     try {
       if (!this.router) {
@@ -62,14 +67,19 @@ export class OxideHandler {
       }
 
       if (this.isNavigationRequest(event) || pathname.startsWith(PAYLOAD_ROUTE_PREFIX)) {
-        return this.handleNavigationPayload(this.extractPayloadPath(pathname), url);
+        const fullUrl = new URL(pathname + search + hash, "http://localhost");
+        return this.handleNavigationPayload(this.extractPayloadPath(pathname), fullUrl);
       }
 
       const redirectResponse = this.handleTrailingSlashRedirect(pathname, search, hash);
-      if (redirectResponse) return redirectResponse;
+      if (redirectResponse) {
+        return redirectResponse;
+      }
 
       const match = this.findMatchingRoute(pathname);
-      if (!match) return this.renderNotFound(pathname);
+      if (!match) {
+        return this.renderNotFound(pathname);
+      }
 
       const oxideUrl = parseUrl(pathname + search + hash);
       return this.renderRoute(match.route, match.params, oxideUrl);
