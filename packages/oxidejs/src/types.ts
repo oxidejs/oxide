@@ -92,17 +92,4 @@ export interface ViewTransitionOptions {
   easing?: string;
 }
 
-export interface OxideConfig {
-  routesDir?: string;
-  trailingSlash?: "never" | "always" | "ignore";
-  base?: string;
-  preload?: {
-    default?: boolean | "hover" | "viewport" | "intent";
-    rootMargin?: string;
-    enableHoverPreload?: boolean;
-    enableViewportPreload?: boolean;
-    respectDataSaver?: boolean;
-  };
-  scrollBehavior?: ScrollOptions;
-  viewTransitions?: ViewTransitionOptions;
-}
+// OxideConfig is defined in config.ts - import from there

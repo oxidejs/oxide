@@ -1,16 +1,18 @@
-export function parseRouteParams(path: string, matched: any): Record<string, string | string[]> {
+export function parseRouteParams(
+  path: string,
+  matched: { params?: Record<string, string | string[]> },
+): Record<string, string | string[]> {
   const params: Record<string, string | string[]> = {};
 
-  if (!matched || !matched.params) {
+  if (!matched?.params) {
     return params;
   }
 
   for (const [key, value] of Object.entries(matched.params)) {
     if (path.includes(`**:${key}`)) {
-      const segments = typeof value === "string" ? value.split("/").filter(Boolean) : [];
-      params[key] = segments;
+      params[key] = Array.isArray(value) ? value : String(value).split("/").filter(Boolean);
     } else {
-      params[key] = value as string;
+      params[key] = Array.isArray(value) ? value[0] || "" : String(value);
     }
   }
 

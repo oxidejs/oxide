@@ -54,63 +54,76 @@ export class OxideHandler {
 
   async handle(event: H3Event): Promise<{ matched: boolean; response: Response }> {
     const url = new URL(event?.req?.url ?? "/", "http://localhost");
-    const pathname = url.pathname;
-    const search = url.search;
-    const hash = url.hash;
-    const isNavigationPayloadRequest = this.isNavigationRequest(event);
+    const { pathname, search, hash } = url;
 
     try {
       if (!this.router) {
         return this.createErrorResponse("No routes manifest provided", 500);
       }
 
-      if (isNavigationPayloadRequest || pathname.startsWith(PAYLOAD_ROUTE_PREFIX)) {
-        const actualPath = this.extractPayloadPath(pathname);
-        return this.handleNavigationPayload(actualPath, url);
+      if (this.isNavigationRequest(event) || pathname.startsWith(PAYLOAD_ROUTE_PREFIX)) {
+        return this.handleNavigationPayload(this.extractPayloadPath(pathname), url);
       }
 
-      const needsCanonicalRedirect = shouldRedirectForTrailingSlash(pathname, this.trailingSlash);
+      const redirectResponse = this.handleTrailingSlashRedirect(pathname, search, hash);
+      if (redirectResponse) return redirectResponse;
 
-      if (needsCanonicalRedirect) {
-        const canonicalUrl = getCanonicalUrl(pathname, search, hash, this.trailingSlash);
-        return {
-          matched: true,
-          response: new Response(null, {
-            status: 308,
-            headers: {
-              Location: canonicalUrl,
-            },
-          }),
-        };
-      }
+      const match = this.findMatchingRoute(pathname);
+      if (!match) return this.renderNotFound(pathname);
 
-      const normalizedPath = normalizePathWithTrailingSlash(pathname, this.trailingSlash);
-      const match = findRoute(this.routerInstance, "GET", normalizedPath);
-
-      if (!match?.data) {
-        const catchAllMatch = this.router.routes?.find(
-          (route) => route.path.includes("**:") && this.matchesCatchAll(route.path, normalizedPath),
-        );
-
-        if (catchAllMatch) {
-          const params = parseRouteParams(catchAllMatch.path, {
-            params: this.extractCatchAllParams(catchAllMatch.path, normalizedPath),
-          });
-          const oxideUrl = parseUrl(pathname + search + hash);
-          return this.renderRoute(catchAllMatch, params, oxideUrl);
-        }
-
-        return this.renderNotFound();
-      }
-
-      const route = match.data as Route;
-      const params = parseRouteParams(route.path, match);
       const oxideUrl = parseUrl(pathname + search + hash);
-
-      return this.renderRoute(route, params, oxideUrl);
+      return this.renderRoute(match.route, match.params, oxideUrl);
     } catch (error: any) {
       return this.handleServerError(error);
     }
+  }
+
+  private handleTrailingSlashRedirect(
+    pathname: string,
+    search: string,
+    hash: string,
+  ): { matched: boolean; response: Response } | null {
+    if (!shouldRedirectForTrailingSlash(pathname, this.trailingSlash)) {
+      return null;
+    }
+
+    const canonicalUrl = getCanonicalUrl(pathname, search, hash, this.trailingSlash);
+    return {
+      matched: true,
+      response: new Response(null, {
+        status: 308,
+        headers: { Location: canonicalUrl },
+      }),
+    };
+  }
+
+  private findMatchingRoute(
+    pathname: string,
+  ): { route: Route; params: Record<string, string | string[]> } | null {
+    const normalizedPath = normalizePathWithTrailingSlash(pathname, this.trailingSlash);
+    const match = findRoute(this.routerInstance, "GET", normalizedPath);
+
+    if (match?.data) {
+      return {
+        route: match.data as Route,
+        params: parseRouteParams((match.data as Route).path, match),
+      };
+    }
+
+    const catchAllMatch = this.router?.routes?.find(
+      (route) => route.path.includes("**:") && this.matchesCatchAll(route.path, normalizedPath),
+    );
+
+    if (catchAllMatch) {
+      return {
+        route: catchAllMatch,
+        params: parseRouteParams(catchAllMatch.path, {
+          params: this.extractCatchAllParams(catchAllMatch.path, normalizedPath),
+        }),
+      };
+    }
+
+    return null;
   }
 
   private async handleNavigationPayload(
@@ -225,7 +238,37 @@ export class OxideHandler {
     }
   }
 
-  private async renderNotFound(): Promise<{ matched: boolean; response: Response }> {
+  private async renderNotFound(
+    _pathname?: string,
+  ): Promise<{ matched: boolean; response: Response }> {
+    const rootError = this.router?.errors?.find((e) => e.level === 0);
+
+    if (rootError && this.router?.importRoute) {
+      try {
+        const errorModule = await this.router.importRoute(rootError.handler);
+        const ErrorComponent = errorModule?.default;
+
+        if (ErrorComponent) {
+          const error = new Error("Page not found");
+          (error as any).status = 404;
+
+          const result = await this.renderComponent(ErrorComponent, {}, parseUrl("/"));
+
+          const response = this.generateHtml(result.body, result.head, {});
+
+          return {
+            matched: true,
+            response: new Response(response, {
+              headers: { "content-type": "text/html" },
+              status: 404,
+            }),
+          };
+        }
+      } catch {
+        // Fall through to default 404
+      }
+    }
+
     const body = dedent`
       <div style="padding: 2rem; text-align: center;">
         <h1>404 - Page Not Found</h1>
@@ -416,8 +459,8 @@ export class OxideHandler {
     return regex.test(pathname);
   }
 
-  private extractCatchAllParams(routePattern: string, pathname: string): Record<string, string> {
-    const params: Record<string, string> = {};
+  private extractCatchAllParams(routePattern: string, pathname: string): Record<string, string[]> {
+    const params: Record<string, string[]> = {};
     const routeParts = routePattern.split("/");
     const pathParts = pathname.split("/");
 
@@ -428,12 +471,12 @@ export class OxideHandler {
 
       if (routePart.startsWith("**:")) {
         const paramName = routePart.slice(3);
-        const remainingPath = pathParts.slice(i).join("/");
-        params[paramName] = remainingPath;
+        const remainingSegments = pathParts.slice(i).filter(Boolean);
+        params[paramName] = remainingSegments;
         break;
       } else if (routePart.startsWith(":")) {
         const paramName = routePart.slice(1);
-        params[paramName] = pathParts[i] || "";
+        params[paramName] = [pathParts[i] || ""];
       }
     }
 

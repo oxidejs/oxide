@@ -155,26 +155,17 @@ export function generateImportStatements(
 ): { routeImports: string; layoutImports: string; errorImports: string } {
   const normalizePath = (p: string) => p.replace(/\\/g, "/");
 
-  const routeImports = routes
-    .map((route, idx) => {
-      const fullPath = resolve(process.cwd(), routesDir, route);
-      return `import Route${idx} from "${normalizePath(fullPath)}";`;
-    })
-    .join("\n");
+  const generateImports = (files: string[], prefix: string) =>
+    files
+      .map((file, idx) => {
+        const fullPath = resolve(process.cwd(), routesDir, file);
+        return `import ${prefix}${idx} from "${normalizePath(fullPath)}";`;
+      })
+      .join("\n");
 
-  const layoutImports = layouts
-    .map((layout, idx) => {
-      const fullPath = resolve(process.cwd(), routesDir, layout);
-      return `import Layout${idx} from "${normalizePath(fullPath)}";`;
-    })
-    .join("\n");
-
-  const errorImports = errors
-    .map((error, idx) => {
-      const fullPath = resolve(process.cwd(), routesDir, error);
-      return `import Error${idx} from "${normalizePath(fullPath)}";`;
-    })
-    .join("\n");
-
-  return { routeImports, layoutImports, errorImports };
+  return {
+    routeImports: generateImports(routes, "Route"),
+    layoutImports: generateImports(layouts, "Layout"),
+    errorImports: generateImports(errors, "Error"),
+  };
 }

@@ -21,7 +21,7 @@ import {
 } from "./config.js";
 
 const APP_ELEMENT_ID = "app";
-const CACHE_MAX_AGE_MS = 5 * 60 * 1000;
+const CACHE_MAX_AGE_MS = 5 * 60 * 1000; // 5 minutes
 
 interface NavigationCache {
   [url: string]: {
@@ -101,14 +101,27 @@ class OxideClientRouter implements Router {
   }
 
   private setupNavigationListeners() {
-    window.addEventListener("popstate", () => {
+    window.addEventListener("popstate", (event) => {
       const url = window.location.pathname + window.location.search + window.location.hash;
-      this.navigateTo(url, { pushState: false, scroll: { behavior: "auto" } });
+      const scroll = event.state?.scroll;
+      this.navigateTo(url, {
+        pushState: false,
+        scroll: scroll || { behavior: "auto" },
+      });
     });
 
     window.addEventListener("unhandledrejection", (event) => {
       this.handleError(new Error(event.reason || "Navigation error"));
     });
+  }
+
+  private saveScrollPosition(): void {
+    const state = window.history.state || {};
+    state.scroll = {
+      top: window.scrollY,
+      left: window.scrollX,
+    };
+    window.history.replaceState(state, "", window.location.href);
   }
 
   async push(href: string): Promise<void> {
@@ -340,76 +353,74 @@ class OxideClientRouter implements Router {
     isHydration = false,
   ): Promise<void> {
     const appElement = document.getElementById(APP_ELEMENT_ID);
-
     if (!appElement) {
       throw new Error(`App element with id "${APP_ELEMENT_ID}" not found`);
     }
 
-    const componentModule = await this.routeManifest.importRoute?.(route.handler);
-    const Component = componentModule?.default;
+    const Component = await this.loadRouteComponent(route);
+    const layoutComponents = await this.loadLayoutComponents(route);
+
+    const shouldHydrate = isHydration && !this.mounted;
+    const mountFn = shouldHydrate ? hydrate : mount;
+
+    this.mountComponent(appElement, Component, layoutComponents, params, url, mountFn);
+
+    if (!isHydration && this.mounted) {
+      this.remountComponent(appElement, Component, layoutComponents, params, url);
+    }
+  }
+
+  private async loadRouteComponent(route: Route): Promise<any> {
+    const module = await this.routeManifest.importRoute?.(route.handler);
+    const Component = module?.default;
 
     if (!Component) {
       throw new Error(`Component not found for route: ${route.handler}`);
     }
 
-    const routeLayouts = this.getLayoutsForRoute(route);
+    return Component;
+  }
 
-    const layoutComponents = await Promise.all(
-      routeLayouts.map(async (layout) => {
-        const layoutModule = await this.routeManifest.importRoute?.(layout.handler);
-        return layoutModule?.default;
-      }),
+  private async loadLayoutComponents(route: Route): Promise<any[]> {
+    const layouts = this.getLayoutsForRoute(route);
+    const modules = await Promise.all(
+      layouts.map((layout) => this.routeManifest.importRoute?.(layout.handler)),
     );
+    return modules.map((m) => m?.default).filter(Boolean);
+  }
 
-    if (layoutComponents.length > 0) {
+  private mountComponent(
+    target: HTMLElement,
+    Component: any,
+    layouts: any[],
+    params: Record<string, string | string[]>,
+    url: OxideUrl,
+    mountFn: (component: any, options: { target: HTMLElement; props: any }) => any,
+  ): void {
+    if (layouts.length > 0) {
       const LayoutRenderer = this.routeManifest.LayoutRenderer;
-
       if (!LayoutRenderer) {
         throw new Error("LayoutRenderer not found in route manifest");
       }
 
-      const mountFn = isHydration && this.mounted === false ? hydrate : mount;
-
       mountFn(LayoutRenderer, {
-        target: appElement,
-        props: {
-          routeComponent: Component,
-          layoutComponents,
-          params,
-          url,
-        },
+        target,
+        props: { routeComponent: Component, layoutComponents: layouts, params, url },
       });
     } else {
-      const mountFn = isHydration && this.mounted === false ? hydrate : mount;
-
-      mountFn(Component, {
-        target: appElement,
-        props: { params, url },
-      });
+      mountFn(Component, { target, props: { params, url } });
     }
+  }
 
-    if (!isHydration && this.mounted) {
-      appElement.innerHTML = "";
-
-      if (layoutComponents.length > 0) {
-        const LayoutRenderer = this.routeManifest.LayoutRenderer;
-
-        mount(LayoutRenderer, {
-          target: appElement,
-          props: {
-            routeComponent: Component,
-            layoutComponents,
-            params,
-            url,
-          },
-        });
-      } else {
-        mount(Component, {
-          target: appElement,
-          props: { params, url },
-        });
-      }
-    }
+  private remountComponent(
+    target: HTMLElement,
+    Component: any,
+    layouts: any[],
+    params: Record<string, string | string[]>,
+    url: OxideUrl,
+  ): void {
+    target.innerHTML = "";
+    this.mountComponent(target, Component, layouts, params, url, mount);
   }
 
   private handleError(error: Error): void {
