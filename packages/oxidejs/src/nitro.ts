@@ -1,17 +1,20 @@
 import type { H3Event } from "h3";
-import { addRoute, createRouter, findRoute } from "rou3";
-import { render } from "svelte/server";
+
 import dedent from "dedent";
 import { readdirSync, existsSync } from "node:fs";
 import path from "node:path";
+import { addRoute, createRouter, findRoute } from "rou3";
+import { render } from "svelte/server";
+
 import type { Route, Layout, NavigationPayload, RouteManifest, OxideUrl } from "./types.js";
-import { parseRouteParams } from "./shared-utils.js";
-import { parseUrl } from "./context.js";
+
 import {
   normalizePathWithTrailingSlash,
   shouldRedirectForTrailingSlash,
   getCanonicalUrl,
 } from "./config.js";
+import { parseUrl } from "./context.js";
+import { parseRouteParams } from "./shared-utils.js";
 
 const PAYLOAD_ROUTE_PREFIX = "/__oxide/payload";
 const VITE_CLIENT_SCRIPT = '<script type="module" src="/@vite/client"></script>';

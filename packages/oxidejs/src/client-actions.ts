@@ -1,4 +1,5 @@
 import type { LinkOptions, NavigationOptions } from "./types.js";
+
 import { shouldRedirectForTrailingSlash, getConfig } from "./config.js";
 
 let globalNavigate: ((pathname: string, options?: NavigationOptions) => Promise<void>) | null =

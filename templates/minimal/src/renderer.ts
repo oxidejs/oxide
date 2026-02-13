@@ -1,5 +1,6 @@
 import { type H3Event, HTTPError } from "nitro/h3";
 import { OxideHandler } from "oxidejs/nitro";
+
 import { router } from "../.oxide/server";
 
 const oxideHandler = new OxideHandler({

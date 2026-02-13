@@ -1,5 +1,6 @@
 import { addRoute, createRouter, findRoute } from "rou3";
 import { mount, hydrate } from "svelte";
+
 import type {
   Route,
   Layout,
@@ -10,15 +11,16 @@ import type {
   ScrollOptions,
   OxideUrl,
 } from "./types.js";
+
 import { setGlobalNavigate, setGlobalPreloader } from "./client-actions.js";
-import { parseRouteParams } from "./shared-utils.js";
-import { parseUrl, createRouteStore, createPayloadStore, type Router } from "./context.js";
 import {
   getConfig,
   normalizePathWithTrailingSlash,
   shouldRedirectForTrailingSlash,
   getCanonicalUrl,
 } from "./config.js";
+import { parseUrl, createRouteStore, createPayloadStore, type Router } from "./context.js";
+import { parseRouteParams } from "./shared-utils.js";
 
 const APP_ELEMENT_ID = "app";
 const CACHE_MAX_AGE_MS = 5 * 60 * 1000; // 5 minutes

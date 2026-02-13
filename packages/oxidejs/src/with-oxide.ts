@@ -1,13 +1,16 @@
-import type { NitroConfig } from "nitro";
+import type { NitroConfig } from "nitro/types";
+
 import { writeFileSync, mkdirSync } from "node:fs";
 import { resolve } from "node:path";
+
+import type { OxideConfig } from "./config.js";
+
+import { setConfig } from "./config.js";
 import {
   scanRoutesDirectory,
   generateRouteManifestArrays,
   generateImportStatements,
 } from "./route-utils.js";
-import type { OxideConfig } from "./config.js";
-import { setConfig } from "./config.js";
 
 interface WithOxideOptions extends OxideConfig {}
 
@@ -23,7 +26,6 @@ function generateRouteManifest(routesDir: string) {
     layouts,
     errors,
     routesDir,
-    "",
   );
 
   const {

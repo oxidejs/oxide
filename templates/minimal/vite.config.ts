@@ -1,9 +1,9 @@
-import { defineConfig } from "vite";
-import { nitro } from "nitro/vite";
 import { svelte } from "@sveltejs/vite-plugin-svelte";
 import tailwindcss from "@tailwindcss/vite";
+import { nitro } from "nitro/vite";
 import path from "node:path";
 import { withOxide } from "oxidejs/nitro";
+import { defineConfig } from "vite";
 
 // https://vite.dev/config/
 export default defineConfig({
