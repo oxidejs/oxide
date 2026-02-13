@@ -1,6 +1,8 @@
 <script lang="ts">
     import type { ComponentType } from "svelte";
     import type { OxideUrl } from "../src/types.js";
+    // Self-import for recursive layout rendering
+    import Self from "./LayoutRenderer.svelte";
 
     let {
         routeComponent,
@@ -8,14 +10,12 @@
         params = {},
         url,
         layoutIndex = 0,
-        routeBody
     }: {
         routeComponent?: ComponentType;
         layoutComponents: ComponentType[];
         params: Record<string, any>;
         url: OxideUrl;
         layoutIndex?: number;
-        routeBody?: string;
     } = $props();
 
     const currentLayout = $derived(layoutComponents[layoutIndex]);
@@ -23,9 +23,7 @@
 </script>
 
 {#if shouldRenderRoute}
-    {#if routeBody}
-        {@html routeBody}
-    {:else if routeComponent}
+    {#if routeComponent}
         {@const Component = routeComponent}
         <Component {params} {url} />
     {/if}
@@ -33,13 +31,12 @@
     {@const Layout = currentLayout}
     <Layout {params} {url}>
         {#snippet children()}
-            <svelte:self
+            <Self
                 {routeComponent}
                 {layoutComponents}
                 {params}
                 {url}
                 layoutIndex={layoutIndex + 1}
-                {routeBody}
             />
         {/snippet}
     </Layout>

@@ -377,9 +377,6 @@ export class OxideHandler {
     params: Record<string, string | string[]>,
     url: OxideUrl,
   ): Promise<{ body: string; head: string }> {
-    // First, render the route component to handle any async work (e.g., top-level await)
-    const routeResult = await this.renderComponent(Component, params, url);
-
     const layoutComponents = [];
 
     for (const layout of layouts) {
@@ -389,33 +386,30 @@ export class OxideHandler {
       }
     }
 
-    // If no layouts, just return the route result
+    // If no layouts, just render the route component directly
     if (layoutComponents.length === 0) {
-      return { body: routeResult.body, head: routeResult.head };
+      return this.renderComponent(Component, params, url);
     }
 
     const LayoutRenderer = this.router?.LayoutRenderer;
 
     if (!LayoutRenderer) {
-      // Fallback: return route without layouts
-      return { body: routeResult.body, head: routeResult.head };
+      return this.renderComponent(Component, params, url);
     }
 
-    // Use LayoutRenderer to wrap the pre-rendered route HTML in layouts
-    // Don't pass routeComponent when using routeBody to avoid async work
+    // Render LayoutRenderer with routeComponent (not routeBody) to ensure
+    // proper hydration structure. The route component's async work (including
+    // hydratable) is captured in the head during this render.
     const result = await render(LayoutRenderer, {
       props: {
         layoutComponents,
+        routeComponent: Component,
         params,
         url,
-        routeBody: routeResult.body,
       },
     });
 
-    // Combine heads from route and layout rendering
-    const combinedHead = routeResult.head + result.head;
-
-    return { body: result.body, head: combinedHead };
+    return { body: result.body, head: result.head };
   }
 
   private async renderComponent(
