@@ -87,6 +87,10 @@ All routed Svelte components (`+layout.svelte`, page `*.svelte`, and `+error.sve
 
 Initial navigation is SSR via Nitro’s renderer: the router matches the URL, loads the layout/error chain, renders HTML, and ships hydration.
 
+For v1, SSR MUST be **non-streaming**: the server waits until the full route (including layouts and awaited component work required for the initial render) is rendered, then sends the completed HTML response.
+
+Streaming SSR is explicitly out of scope for v1 and should be considered for a future version, including implications for awaited data capture, payload emission timing, and partial HTML delivery.
+
 After hydration, subsequent navigations are handled client-side (History API + dynamic imports) without full page reloads.
 
 ### Await-first data model (v1)
@@ -130,3 +134,25 @@ The client router MUST provide at least:
 - `route`: readable store of current `{ url, params, ... }`
 - `payload`: readable store of current navigation payload (JSON)
 - `isReady()`: resolves when initial hydration route state is established (client)
+
+## Considerations for next implementation
+
+The following items are explicitly deferred from v1 and should be addressed in the next implementation iteration to make the router more complete and more predictable in edge cases.
+
+- **404 behavior**: Define what happens when no route matches (which `+error.svelte` is used, default status code, and the props shape for “not found” vs other errors).
+- **Error status semantics**: Specify status code mapping for thrown errors vs handled errors, and clearly define SSR vs SPA behavior (render boundary, navigate to error route, or hard reload).
+- **Navigation payload transport**: Define how the client requests the JSON payload (URL shape and/or content negotiation), what headers are used, and whether payload endpoints differ from HTML endpoints.
+- **Redirect representation during SPA**: Specify how server-side redirects are represented in payload responses (including canonicalization), and how the client router applies them (push vs replace, preserving method, etc.).
+- **SPA failure mode**: Define what happens when payload fetch fails (network error, timeout, 4xx/5xx): stay put, show nearest error boundary, or fall back to full navigation.
+- **Payload schema**: Define the concrete JSON shape (including how nested layouts/pages/errors map into the payload), and whether route/module identifiers are included for correctness checks.
+- **Payload caching rules**: Specify cache keys and invalidation triggers (pathname vs query vs hash), plus any canonicalization interactions with `trailingSlash: 'ignore'`.
+- **Serialization constraints**: Make the “JSON-only” rule testable by specifying allowed types precisely and whether dates, maps, sets, bigints, etc. are rejected or coerced.
+- **Route collisions and tie-breakers**: Define deterministic behavior when two route files map to the same URL due to route groups stripping segments, or other collisions.
+- **Param decoding rules**: Specify percent-decoding behavior and any normalization rules for params and catch-all segments, including reserved characters and invalid encodings.
+- **Matchers/validation**: If param matchers are not planned, explicitly say “no matchers in v1/v2”; otherwise define a matcher mechanism and how “no match” becomes 404 vs error.
+- **Catch-all type decision**: Make catch-all param output definitive (`string[]` vs `string`) and document normalization rules.
+- **Layout persistence semantics**: Define whether parent layouts persist across sibling navigations (typical nested routing) and whether layouts remount or update on navigation.
+- **Awaited work lifecycle**: Specify whether awaited work in layouts/pages is cached across navigations, re-run conditions, and how duplication is avoided.
+- **Link enhancement edge cases**: Define behavior for hash-only changes, `download`, `rel="external"`, non-http schemes (`mailto:`, `tel:`), and `target` variations beyond `_self`.
+- **Scroll and focus restoration**: Define default scroll restoration, anchor scrolling, and focus management on navigation and popstate.
+- **Streaming SSR (future)**: Consider streaming SSR support and specify implications for awaited data capture, payload emission timing, and partial HTML delivery (explicitly out of scope for v1).

@@ -3,6 +3,7 @@
   "compilerOptions": {
     "baseUrl": ".",
     "paths": {
+      "$oxide/*": [".oxide/*"],
       "$lib/*": ["src/lib/*"],
       "$assets/*": ["src/assets/*"]
     }

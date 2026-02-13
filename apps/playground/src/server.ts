@@ -1,10 +1,10 @@
 import { type H3Event, HTTPError } from "nitro/h3";
 import { OxideHandler } from "oxidejs/nitro";
-import router from "#oxide/router";
+import { router } from "$oxide/server";
 
 const oxideHandler = new OxideHandler({ router });
 
-async function renderer(event: H3Event) {
+async function fetch(event: H3Event) {
   const { matched, response } = await oxideHandler.handle(event);
   if (matched) {
     return response;
@@ -12,4 +12,6 @@ async function renderer(event: H3Event) {
   throw HTTPError.status(404);
 }
 
-export default renderer;
+export default {
+  fetch,
+};

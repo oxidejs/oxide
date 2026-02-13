@@ -152,7 +152,6 @@ export function generateImportStatements(
   layouts: string[],
   errors: string[],
   routesDir: string,
-  importPrefix: string,
 ): { routeImports: string; layoutImports: string; errorImports: string } {
   const normalizePath = (p: string) => p.replace(/\\/g, "/");
 

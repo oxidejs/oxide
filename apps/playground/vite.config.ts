@@ -21,6 +21,7 @@ export default defineConfig({
   ],
   resolve: {
     alias: {
+      $oxide: path.resolve("./.oxide"),
       $lib: path.resolve("./src/lib"),
       $assets: path.resolve("./src/assets"),
     },
@@ -28,9 +29,15 @@ export default defineConfig({
   environments: {
     client: {
       build: {
-        manifest: true,
         rollupOptions: {
-          input: ".oxide/client.ts",
+          input: "$oxide/client.ts",
+        },
+      },
+    },
+    ssr: {
+      build: {
+        rollupOptions: {
+          input: "src/server.ts",
         },
       },
     },

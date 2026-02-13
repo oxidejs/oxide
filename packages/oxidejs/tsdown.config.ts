@@ -6,5 +6,8 @@ export default defineConfig({
   entry: ["src/index.ts", "src/client.ts", "src/nitro.ts"],
   dts: true,
   platform: "node",
-  plugins: [svelte({ preprocess: vitePreprocess(), compilerOptions: { experimental: { async: true } } })],
+  plugins: [
+    svelte({ preprocess: vitePreprocess(), compilerOptions: { experimental: { async: true } } }),
+  ],
+  logLevel: "error",
 });
