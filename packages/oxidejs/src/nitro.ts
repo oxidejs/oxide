@@ -1,5 +1,3 @@
-import type { H3Event } from "h3";
-
 import dedent from "dedent";
 import { readdirSync, existsSync } from "node:fs";
 import path from "node:path";
@@ -55,11 +53,9 @@ export class OxideHandler {
 
   private routerInstance = createRouter();
 
-  async handle(event: H3Event): Promise<{ matched: boolean; response: Response }> {
-    // H3Event provides URL as a string, not a URL object
-    // Parse it to extract pathname, search, and hash
-    const urlString = String(event.url || "http://localhost/");
-    const url = new URL(urlString);
+  async handle(request: Request): Promise<{ matched: boolean; response: Response }> {
+    // Parse URL from Request to extract pathname, search, and hash
+    const url = new URL(request.url);
     const pathname = url.pathname;
     const search = url.search;
     const hash = url.hash;
@@ -69,7 +65,7 @@ export class OxideHandler {
         return this.createErrorResponse("No routes manifest provided", 500);
       }
 
-      if (this.isNavigationRequest(event) || pathname.startsWith(PAYLOAD_ROUTE_PREFIX)) {
+      if (this.isNavigationRequest(request) || pathname.startsWith(PAYLOAD_ROUTE_PREFIX)) {
         const fullUrl = new URL(pathname + search + hash, "http://localhost");
         return this.handleNavigationPayload(this.extractPayloadPath(pathname), fullUrl);
       }
@@ -448,9 +444,8 @@ export class OxideHandler {
     return process.env.NODE_ENV === "development" || !process.env.NODE_ENV;
   }
 
-  private isNavigationRequest(event: H3Event): boolean {
-    const headers = event.req?.headers || {};
-    return (headers as any)["x-oxide-navigation"] === "true";
+  private isNavigationRequest(request: Request): boolean {
+    return request.headers.get("x-oxide-navigation") === "true";
   }
 
   private extractPayloadPath(pathname: string): string {

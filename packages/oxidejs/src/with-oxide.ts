@@ -229,8 +229,9 @@ export const router = {
   };
 
   return {
+    serverDir: "src",
     hooks: {
-      "dev:prepare": generateEntries,
+      "dev:start": generateEntries,
       "build:before": generateEntries,
     },
     errorHandler: "src/error.ts",
