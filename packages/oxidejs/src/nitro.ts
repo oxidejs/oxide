@@ -662,3 +662,4 @@ export {
 } from "./config.js";
 export { parseUrl } from "./context.js";
 export { parseRouteParams } from "./shared-utils.js";
+export { useRequest } from "nitro/context";

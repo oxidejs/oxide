@@ -12,10 +12,12 @@
     "build:framework": "bun run --filter 'oxidejs' build",
     "lint": "oxlint",
     "lint:fix": "oxlint --fix",
-    "fmt": "oxfmt"
+    "fmt": "oxfmt",
+    "prepare": "husky"
   },
   "devDependencies": {
     "@types/bun": "latest",
+    "husky": "^9.1.7",
     "oxfmt": "^0.27.0",
     "oxlint": "^1.42.0"
   },

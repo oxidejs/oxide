@@ -1,14 +1,17 @@
 <script lang="ts">
-    import { hydratable } from "svelte";
+    import { client } from "$lib/orpc";
+
     let timesClicked = $state(0)
 
-    const pokemon = await hydratable('test', async () => {
-        const req = await fetch('https://pokeapi.co/api/v2/pokemon/charizard')
-        return req.json()
-    })
+    const ping = await client.ping()
 
     function increase() {
         timesClicked += 1
+    }
+
+    async function getPing() {
+        const ping = await client.ping()
+        console.log('>>>P', ping)
     }
 </script>
 
@@ -17,6 +20,7 @@
         <h2 class="text-lg font-semibold">Welcome to Oxide</h2>
         <p>Times clicked: {timesClicked}</p>
         <button class="btn btn-lg" onclick={increase}>Click me</button>
-        <p>{pokemon.name}</p>
+        <button class="btn btn-lg" onclick={getPing}>Get Ping</button>
+        <p>ping: {ping}</p>
     </div>
 </div>

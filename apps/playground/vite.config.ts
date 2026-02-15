@@ -1,24 +1,14 @@
-import { svelte, vitePreprocess } from "@sveltejs/vite-plugin-svelte";
+import { svelte } from "@sveltejs/vite-plugin-svelte";
 import tailwindcss from "@tailwindcss/vite";
 import { nitro } from "nitro/vite";
 import path from "node:path";
 import { withOxide } from "oxidejs/nitro";
 import { defineConfig } from "vite";
+import { isoImport } from "vite-plugin-iso-import";
 
 // https://vite.dev/config/
 export default defineConfig({
-  plugins: [
-    svelte({
-      preprocess: vitePreprocess(),
-      compilerOptions: {
-        experimental: {
-          async: true,
-        },
-      },
-    }),
-    tailwindcss(),
-    nitro(),
-  ],
+  plugins: [svelte(), tailwindcss(), nitro(), isoImport()],
   resolve: {
     alias: {
       $oxide: path.resolve("./.oxide"),

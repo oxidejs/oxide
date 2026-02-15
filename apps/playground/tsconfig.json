@@ -6,7 +6,8 @@
       "$oxide/*": [".oxide/*"],
       "$lib/*": ["src/lib/*"],
       "$assets/*": ["src/assets/*"]
-    }
+    },
+    "plugins": [{ "name": "vite-plugin-iso-import" }]
   },
   "include": ["src"]
 }

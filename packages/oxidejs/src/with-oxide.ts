@@ -1,3 +1,5 @@
+import type { NitroConfig } from "nitro/types";
+
 import { writeFileSync, mkdirSync } from "node:fs";
 import { resolve } from "node:path";
 
@@ -226,13 +228,16 @@ export const router = {
     generateServerEntry();
   };
 
-  const config = {
+  return {
     serverDir: "src",
     hooks: {
       "dev:start": generateEntries,
       "build:before": generateEntries,
     },
     errorHandler: "src/error.ts",
+    experimental: {
+      asyncContext: true,
+    },
     routeRules: {
       "/__oxide/payload/**": {
         headers: {
@@ -251,7 +256,5 @@ export const router = {
         },
       },
     },
-  };
-
-  return config;
+  } satisfies NitroConfig;
 }
