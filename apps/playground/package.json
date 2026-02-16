@@ -13,6 +13,7 @@
     "@orpc/client": "^1.13.5",
     "@orpc/server": "^1.13.5",
     "basecoat-css": "^0.3.10",
+    "ofetch": "^1.5.1",
     "oxidejs": "workspace:*",
     "runed": "^0.37.1"
   },
