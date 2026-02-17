@@ -10,4 +10,5 @@ export default defineConfig({
     svelte({ preprocess: vitePreprocess(), compilerOptions: { experimental: { async: true } } }),
   ],
   logLevel: "error",
+  inlineOnly: false,
 });
