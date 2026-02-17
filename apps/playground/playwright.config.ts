@@ -34,9 +34,13 @@ export default defineConfig({
   projects: [
     {
       name: "chromium",
-      use: { ...devices["Desktop Chrome"], channel: "chromium" },
+      // use: { ...devices["Desktop Chrome"], channel: "chromium" },
       // Local development on Linux:
-      // use: { ...devices["Desktop Chrome"], channel: "chromium", launchOptions: { executablePath: "/usr/bin/chromium" } },
+      use: {
+        ...devices["Desktop Chrome"],
+        channel: "chromium",
+        launchOptions: { executablePath: "/usr/bin/chromium" },
+      },
     },
 
     // {

@@ -20,10 +20,10 @@
                 <h2>Hydration</h2>
             </header>
             <section>
-                <p>Times clicked: {timesClicked}</p>
+                <p data-testid="times-clicked" data-times-clicked={timesClicked}>Times clicked: {timesClicked}</p>
             </section>
             <footer>
-                <button class="btn btn-lg" onclick={increase}>Increase</button>
+                <button class="btn btn-lg" onclick={increase} data-testid="increase-times-clicked">Increase</button>
             </footer>
         </div>
         <div class="card">
@@ -32,14 +32,14 @@
             </header>
             <section class="flex flex-col gap-2">
                 <label class="label" for="pokemonName">Pick the pokemon</label>
-                <select id="pokemonName" class="select w-80" bind:value={currentPokemon}>
+                <select id="pokemonName" class="select w-80" bind:value={currentPokemon} data-testid="select-pokemon">
                     <optgroup label="Pokemon">
                         {#each pokemonList.results as pokemon}
                             <option selected={pokemon.name === currentPokemon} value={pokemon.name}>{pokemon.name}</option>
                         {/each}
                     </optgroup>
                 </select>
-                <img src={pokemon.sprites.other.showdown.front_default} class="size-32 object-fit shrink-0" alt={currentPokemon} />
+                <img data-testid="pokemon-image" src={pokemon.sprites.other.showdown.front_default} class="size-32 object-fit shrink-0" alt={currentPokemon} />
                 {#if currentPokemon === 'blastoise'}
                     <p>BIG MAN BLASTOISE!</p>
                 {/if}
