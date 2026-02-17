@@ -13,7 +13,8 @@ jobs:
       - name: Install Playwright Browsers
         run: bunx playwright install chromium --with-deps
       - name: Build framework
-        run: bun run build:framework
+        run: bun run build
+        working-directory: packages/oxidejs
       - name: Run E2E Playground tests
         run: bun run test:e2e
         working-directory: apps/playground

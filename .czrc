@@ -3,6 +3,7 @@
   "scopes": [
     "framework",
     "playground",
-    "docs"
+    "docs",
+    "repo"
   ]
 }
